@@ -22,7 +22,7 @@ d_cons_n = 2 * (n_vertices - n_vertices_x - n_vertices_y + 1)
 p_d = dx
 d_d = 1.41421 * dx
 k = 1
-constraint = ti.Vector(4, dt=real, shape=(4*n_vertices-3*n_vertices_x-3*n_vertices_y+2))
+constraint = ti.Vector.field(4, dtype=real, shape=(4*n_vertices-3*n_vertices_x-3*n_vertices_y+2))
 
 
 tank_size_x = 2
@@ -31,25 +31,25 @@ tank_n = tank_size_x * tank_size_y
 tank_dx = 0.04
 p_tank_cons_n = tank_n * 2 - tank_size_x - tank_size_y
 d_tank_cons_n = 2 * (tank_n - tank_size_x - tank_size_y + 1)
-tank_constraint = ti.Vector(4, dt=real, shape=(4*tank_n-3*tank_size_x-3*tank_size_y+2))
+tank_constraint = ti.Vector.field(4, dtype=real, shape=(4*tank_n-3*tank_size_x-3*tank_size_y+2))
 
 
 
-x = ti.Vector(dim, dt=real, shape=n_vertices)
-v = ti.Vector(dim, dt=real, shape=n_vertices)
-p = ti.Vector(dim, dt=real, shape=n_vertices)
+x = ti.Vector.field(dim, dtype=real, shape=n_vertices)
+v = ti.Vector.field(dim, dtype=real, shape=n_vertices)
+p = ti.Vector.field(dim, dtype=real, shape=n_vertices)
 
-x1 = ti.Vector(dim, dt=real, shape=n_vertices)
-v1 = ti.Vector(dim, dt=real, shape=n_vertices)
-p1 = ti.Vector(dim, dt=real, shape=n_vertices)
+x1 = ti.Vector.field(dim, dtype=real, shape=n_vertices)
+v1 = ti.Vector.field(dim, dtype=real, shape=n_vertices)
+p1 = ti.Vector.field(dim, dtype=real, shape=n_vertices)
 
-xt = ti.Vector(dim, dt=real, shape=n_vertices)
-vt = ti.Vector(dim, dt=real, shape=n_vertices)
-pt = ti.Vector(dim, dt=real, shape=n_vertices)
+xt = ti.Vector.field(dim, dtype=real, shape=n_vertices)
+vt = ti.Vector.field(dim, dtype=real, shape=n_vertices)
+pt = ti.Vector.field(dim, dtype=real, shape=n_vertices)
 
-xt1 = ti.Vector(dim, dt=real, shape=n_vertices)
-vt1 = ti.Vector(dim, dt=real, shape=n_vertices)
-pt1 = ti.Vector(dim, dt=real, shape=n_vertices)
+xt1 = ti.Vector.field(dim, dtype=real, shape=n_vertices)
+vt1 = ti.Vector.field(dim, dtype=real, shape=n_vertices)
+pt1 = ti.Vector.field(dim, dtype=real, shape=n_vertices)
 
 
 mesh = lambda i, j: i * n_vertices_y + j
@@ -435,8 +435,8 @@ def update():
                 xt1[mesh(i, j)] = pt1[mesh(i, j)]
 
 
-result_dir = "./results"
-video_manager = ti.VideoManager(output_dir=result_dir, framerate=24, automatic_build=False)
+#result_dir = "./results"
+#video_manager = ti.VideoManager(output_dir=result_dir, framerate=24, automatic_build=False)
 frame = 0
 while True:
     prediction()
@@ -524,6 +524,6 @@ while True:
         for j in range(0,tank_size_y-1):
             gui.line(xt[mesh(i,j)],xt[mesh(i-1,j+1)],radius=0.6,color=0x000000)
             gui.line(xt1[mesh(i,j)],xt1[mesh(i-1,j+1)],radius=0.6,color=0x000000)
-    gui.show(f'{frame:06d}.png')
+    #gui.show(f'{frame:06d}.png')
     gui.show()
     frame += 1
