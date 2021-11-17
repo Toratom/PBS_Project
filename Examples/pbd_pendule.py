@@ -64,6 +64,8 @@ def get_proposed_pos():
 def project_constraints():
     for c_idx in range(c_num):
         # Position constraint:
+        # NOTE by Davide: this constraint is used to keep the position of the first
+        # particle fixed while the others fall.
         if constraint_vector[c_idx][0] == 0:
             p_idx = constraint_vector[c_idx][1]
             x_proposed[p_idx] = [0.5, 0.8]
