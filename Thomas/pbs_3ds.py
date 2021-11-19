@@ -6,9 +6,6 @@ from ellipsoid_field import EllipsoidField
 
 ti.init(arch=ti.cpu)
 
-### Parameters
-paused = False
-
 @ti.data_oriented
 class Simulation(object):
     ''' 
@@ -16,128 +13,66 @@ class Simulation(object):
     '''
 
     nb_of_ellipsoids = 4
-    radii_array = np.array([[0.5, 0.2, 0.5], [0.5, 0.2, 0.5], [0.5, 0.2, 0.5], [0.5, 0.2, 0.5]])
-    ini_centers = np.array([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.]])
+    radii_array = np.array([[0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]])
+    ini_centers = np.array([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.]]) + np.array([0., 20., 0.])
     ini_rotation = np.array([[0., 0., 0., 1.],
-     [-0.3444844, -0.3444844, -0.8733046, 0], 
-     [-0.3444844, -0.3444844, -0.8733046, 0],
-     [-0.3444844, -0.3444844, -0.8733046, 0]])
+     [0., 0., 0., 1.], 
+     [0., 0., 0., 1.],
+     [0., 0., 0., 1.]])
     connections = np.array([[0, 1], [1, 3], [3, 2], [2, 0]])
+    ini_velocities = np.zeros(ini_centers.shape)
+    ini_mass = np.array([1., 1., 1., 10.])
+    gravity = np.array([0., -9.8, 0.])
 
     def __init__(self, res = 25):
         # create objects in the scene
 
-        self.objects = EllipsoidField(self.radii_array,
+        self.ellips_field = EllipsoidField(self.radii_array,
          self.ini_centers,
          self.ini_rotation,
          self.connections,
+         self.ini_velocities,
+         self.ini_mass,
+         self.gravity,
          res = res,
          shape = (self.nb_of_ellipsoids,))
-        # self.PBS_Solber = PBS_SOLVER ...
 
         self.dt = 3e-3
         self.t = 0.0
         self.cur_step = 0
         self.paused = True
-        # self.mass = 1.0
-        # self.angle = 1.047
-        # self.force = 10.0
-        # self.show_contacts = False
-        # self.gravity = np.array([0.0, -9.81, 0.0])
-        # self.eps = 1.0
 
         self.init()
 
-    @ti.kernel
-    def set_sim_init(self, dt: ti.f32):
-        # set initial condition of simulation
-        # momentum = self.force * ti.Vector([ti.cos(self.angle), ti.sin(self.angle), 0])
-        # self.objects.set_linear_momentum(momentum, 0)
-        pass
+    # @ti.kernel
+    # def set_sim_init(self,dt: ti.f32):
+    #     # set initial condition of simulation
+    #     # momentum = self.force * ti.Vector([ti.cos(self.angle), ti.sin(self.angle), 0])
+    #     # self.ellips_field.set_linear_momentum(momentum, 0)
+    #     pass
     
     def update_meshes_and_lines(self):
         #Update meshes (ellipsoids)
-        new_V = self.objects.new_V.to_numpy()
-        C = self.objects.C.to_numpy()
-        for e in itertools.product(*self.objects.shape_ranges):
-            self.objects.meshes[e].vertices = o3d.utility.Vector3dVector(
-                new_V[e][: self.objects.nV[e]]
+        new_V = self.ellips_field.new_V.to_numpy()
+        C = self.ellips_field.C.to_numpy()
+        for e in itertools.product(*self.ellips_field.shape_ranges):
+            self.ellips_field.meshes[e].vertices = o3d.utility.Vector3dVector(
+                new_V[e][: self.ellips_field.nV[e]]
             )
-            self.objects.meshes[e].vertex_colors = o3d.utility.Vector3dVector(
-                C[e][: self.objects.nV[e]]
+            self.ellips_field.meshes[e].vertex_colors = o3d.utility.Vector3dVector(
+                C[e][: self.ellips_field.nV[e]]
             )
         #Updates lines
-        centers = self.objects.pos.to_numpy()
-        self.objects.lines.points = o3d.utility.Vector3dVector(centers)
+        centers = self.ellips_field.x.to_numpy()
+        self.ellips_field.lines.points = o3d.utility.Vector3dVector(centers)
     
     def init(self):
         # reset non taichi-scope variables here
         self.t = 0.0
         self.cur_step = 0
-        self.objects.reset_members()
-        self.set_sim_init(self.dt)
+        self.ellips_field.reset_members()
+        # self.set_sim_init(self.dt)
         self.update_meshes_and_lines()
-
-    @ti.kernel
-    def advance(
-        self,
-        dt: ti.f32,
-        t: ti.f32
-    ):
-        T = ti.Vector([0.01, 0.01, 0.01])
-        for i in range(self.nb_of_ellipsoids):
-            pos = self.objects.get_position(i)
-            pos += T
-            self.objects.set_position(pos, i)
-
-        self.objects.update_new_positions() #IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
-
-
-    #     self.collisionDetection.compute_collision_detection(
-    #         broad_phase_method, narrow_phase_method, self.eps
-    #     )
-
-    #     for i in range(self.NUM_CUBES + 5):
-    #         self.objects.apply_force_to_COM(ti.Vector(self.gravity), i)
-
-    #     for i in range(self.NUM_CUBES + 5):
-    #         # integrate velocities
-    #         self.objects.set_linear_momentum(
-    #             self.objects.get_linear_momentum(i) + dt * self.objects.get_force(i), i
-    #         )
-    #         self.objects.set_angular_momentum(
-    #             self.objects.get_angular_momentum(i) + dt * self.objects.get_torque(i),
-    #             i,
-    #         )
-
-    #         # integrate position
-    #         self.objects.set_position(
-    #             self.objects.get_position(i) + dt * self.objects.get_linear_velocity(i),
-    #             i,
-    #         )
-
-    #         # integrate rotation (same as in ex2)
-    #         w = self.objects.get_angular_velocity(i)
-
-    #         if method == self.METHOD_MATRIX:
-    #             W = utils.skew(w)
-    #             R = self.objects.get_rotation_matrix(i)
-    #             self.objects.set_rotation_matrix(R + dt * (W @ R), i)
-    #         elif method == self.METHOD_MATRIX_ORTH:
-    #             W = utils.skew(w)
-    #             R = self.objects.get_rotation_matrix(i)
-    #             U, sigma, V = ti.svd(R + dt * (W @ R), ti.f32)
-    #             self.objects.set_rotation_matrix(U @ V.transpose(), i)
-    #         elif method == self.METHOD_QUATERNION:
-    #             wq = ti.Vector([w.x, w.y, w.z, 0])
-    #             q = self.objects.get_rotation(i)
-    #             dq = utils.quaternion_multiply(wq, q)
-    #             new_q = q + 0.5 * dt * dq
-    #             self.objects.set_rotation(new_q.normalized(), i)
-
-    #     self.objects.reset_force()
-    #     self.objects.reset_torque()
-    #     self.objects.update_new_positions() #IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
 
     def step(self):
         if self.paused:
@@ -149,7 +84,142 @@ class Simulation(object):
             self.t,
         )
         self.update_meshes_and_lines()
-        # debug here: e.g. print(self.collisionDetection.sizes)
+
+    @ti.kernel
+    def advance(
+        self,
+        dt: ti.f32,
+        t: ti.f32
+    ):  
+        #Corresponds to one iteration of the position based algo page 3
+        # T = ti.Vector([0.0,- 0.01, 0.0])
+        # for i in range(self.nb_of_ellipsoids):
+        #     pos = self.ellips_field.get_x(i)
+        #     pos += T
+        #     self.ellips_field.set_x(pos, i)
+
+        self.prologue_velocities()
+        self.prologue_positions()
+        self.project_distance_constr()
+        self.epilogue()
+
+        self.ellips_field.update_new_positions() #IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
+
+
+    #     self.collisionDetection.compute_collision_detection(
+    #         broad_phase_method, narrow_phase_method, self.eps
+    #     )
+
+    #     for i in range(self.NUM_CUBES + 5):
+    #         self.ellips_field.apply_force_to_COM(ti.Vector(self.gravity), i)
+
+    #     for i in range(self.NUM_CUBES + 5):
+    #         # integrate velocities
+    #         self.ellips_field.set_linear_momentum(
+    #             self.ellips_field.get_linear_momentum(i) + dt * self.ellips_field.get_force(i), i
+    #         )
+    #         self.ellips_field.set_angular_momentum(
+    #             self.ellips_field.get_angular_momentum(i) + dt * self.ellips_field.get_torque(i),
+    #             i,
+    #         )
+
+    #         # integrate position
+    #         self.ellips_field.set_p(
+    #             self.ellips_field.get_p(i) + dt * self.ellips_field.get_linear_velocity(i),
+    #             i,
+    #         )
+
+    #         # integrate rotation (same as in ex2)
+    #         w = self.ellips_field.get_angular_velocity(i)
+
+    #         if method == self.METHOD_MATRIX:
+    #             W = utils.skew(w)
+    #             R = self.ellips_field.get_rotation_matrix(i)
+    #             self.ellips_field.set_rotation_matrix(R + dt * (W @ R), i)
+    #         elif method == self.METHOD_MATRIX_ORTH:
+    #             W = utils.skew(w)
+    #             R = self.ellips_field.get_rotation_matrix(i)
+    #             U, sigma, V = ti.svd(R + dt * (W @ R), ti.f32)
+    #             self.ellips_field.set_rotation_matrix(U @ V.transpose(), i)
+    #         elif method == self.METHOD_QUATERNION:
+    #             wq = ti.Vector([w.x, w.y, w.z, 0])
+    #             q = self.ellips_field.get_rotation(i)
+    #             dq = utils.quaternion_multiply(wq, q)
+    #             new_q = q + 0.5 * dt * dq
+    #             self.ellips_field.set_rotation(new_q.normalized(), i)
+
+    #     self.ellips_field.reset_force()
+    #     self.ellips_field.reset_torque()
+    #     self.ellips_field.update_new_positions() #IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
+
+
+    @ti.func
+    def prologue_velocities(self):
+        for i in range(self.nb_of_ellipsoids):
+            # Update velocities using forces external
+            v = self.ellips_field.get_velocity(i)
+            f = self.ellips_field.get_ext_force(i)
+            inv_m = self.ellips_field.get_massInv(i)
+
+            # Decoment for a tastier animation
+            # if (i == 0 or i == 1) : f = 5*f
+
+            v = v + self.dt * inv_m * f
+            # Damp velocities
+            v = self.damp(v)
+
+            self.ellips_field.set_velocity(v, i)
+
+    @ti.func
+    def damp(self, velocity):
+        return velocity
+
+    @ti.func
+    def prologue_positions(self):
+        for i in range(self.nb_of_ellipsoids):
+            x = self.ellips_field.get_x(i)
+            v = self.ellips_field.get_velocity(i)
+
+            p = x + self.dt * v
+
+            self.ellips_field.set_p(p, i)
+
+    @ti.func
+    def project_distance_constr(self):
+        for i in range(self.ellips_field.get_nb_of_edges()):
+            edge = self.ellips_field.get_edge(i) #gives a 2D taichi vector
+
+            p1_idx = edge.x
+            p2_idx = edge.y
+            p1 = self.ellips_field.get_p(p1_idx)
+            p2 = self.ellips_field.get_p(p2_idx)
+            n = (p1 - p2).normalized()
+            distance = (p1 - p2).norm() - self.ellips_field.get_rest_distance(p1_idx, p2_idx)
+            inv_m1 = self.ellips_field.get_massInv(p1_idx)
+            inv_m2 = self.ellips_field.get_massInv(p2_idx)
+            inv_m_total = inv_m1 + inv_m2
+
+            delta1 = - (inv_m1 / inv_m_total) * distance * n
+            delta2 = (inv_m2 / inv_m_total) * distance * n
+            
+            p1 += delta1
+            p2 += delta2
+
+            self.ellips_field.set_p(p1, p1_idx)
+            self.ellips_field.set_p(p2, p2_idx)
+
+    # Note: inside body class, I could add additional constraints (local constraints) to
+    # impose certain properties, like a fixed position in space. To do so, I should add a
+    # small function called "project additional constraint"
+
+    @ti.func
+    def epilogue(self):
+        for i in range(self.nb_of_ellipsoids):
+            p = self.ellips_field.get_p(i)
+            x = self.ellips_field.get_x(i)
+
+            self.ellips_field.set_velocity((p - x) / self.dt, i)
+            self.ellips_field.set_x(p, i)
 
 
 def main():
@@ -200,24 +270,28 @@ def main():
 
     #add ellipsoids to visualization
     for i in range(sim.nb_of_ellipsoids):
-        vis.add_geometry(sim.objects.meshes[i])
+        vis.add_geometry(sim.ellips_field.meshes[i])
     
     #add lines to vizualtiztion
-    vis.add_geometry(sim.objects.lines)
+    vis.add_geometry(sim.ellips_field.lines)
 
     # for i in range(5):  # wireframes of the walls
     #     shell = o3d.geometry.LineSet.create_from_triangle_mesh(
-    #         sim.objects.meshes[i + sim.NUM_CUBES]
+    #         sim.ellips_field.meshes[i + sim.NUM_CUBES]
     #     )
     #     vis.add_geometry(shell)
+
+    # print(vis.get_render_option().line_width)
+    # vis.get_render_option().line_width = 20.
+    # print(vis.get_render_option().line_width)
 
     while True:
         sim.step()
         
         #Update of meshes and then of lines
-        for mesh in sim.objects.meshes.ravel():
+        for mesh in sim.ellips_field.meshes.ravel():
             vis.update_geometry(mesh)
-        vis.update_geometry(sim.objects.lines)
+        vis.update_geometry(sim.ellips_field.lines)
 
         if not vis.poll_events():
             break
