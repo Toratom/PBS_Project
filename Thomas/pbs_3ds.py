@@ -22,11 +22,17 @@ class Simulation(object):
      [-0.3444844, -0.3444844, -0.8733046, 0], 
      [-0.3444844, -0.3444844, -0.8733046, 0],
      [-0.3444844, -0.3444844, -0.8733046, 0]])
+    connections = np.array([[0, 1], [1, 3], [3, 2], [2, 0]])
 
-    def __init__(self, res = 120):
+    def __init__(self, res = 25):
         # create objects in the scene
 
-        self.objects = EllipsoidField(self.radii_array, self.ini_centers, self.ini_rotation, res = res, shape = (self.nb_of_ellipsoids,))
+        self.objects = EllipsoidField(self.radii_array,
+         self.ini_centers,
+         self.ini_rotation,
+         self.connections,
+         res = res,
+         shape = (self.nb_of_ellipsoids,))
         # self.PBS_Solber = PBS_SOLVER ...
 
         self.dt = 3e-3
@@ -49,7 +55,8 @@ class Simulation(object):
         # self.objects.set_linear_momentum(momentum, 0)
         pass
     
-    def update_meshes(self):
+    def update_meshes_and_lines(self):
+        #Update meshes (ellipsoids)
         new_V = self.objects.new_V.to_numpy()
         C = self.objects.C.to_numpy()
         for e in itertools.product(*self.objects.shape_ranges):
@@ -59,6 +66,9 @@ class Simulation(object):
             self.objects.meshes[e].vertex_colors = o3d.utility.Vector3dVector(
                 C[e][: self.objects.nV[e]]
             )
+        #Updates lines
+        centers = self.objects.pos.to_numpy()
+        self.objects.lines.points = o3d.utility.Vector3dVector(centers)
     
     def init(self):
         # reset non taichi-scope variables here
@@ -66,17 +76,23 @@ class Simulation(object):
         self.cur_step = 0
         self.objects.reset_members()
         self.set_sim_init(self.dt)
-        self.update_meshes()
+        self.update_meshes_and_lines()
 
-    # @ti.kernel
-    # def advance(
-    #     self,
-    #     dt: ti.f32,
-    #     t: ti.f32,
-    #     method: ti.i32,
-    #     broad_phase_method: ti.i32,
-    #     narrow_phase_method: ti.i32,
-    # ):
+    @ti.kernel
+    def advance(
+        self,
+        dt: ti.f32,
+        t: ti.f32
+    ):
+        T = ti.Vector([0.01, 0.01, 0.01])
+        for i in range(self.nb_of_ellipsoids):
+            pos = self.objects.get_position(i)
+            pos += T
+            self.objects.set_position(pos, i)
+
+        self.objects.update_new_positions() #IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
+
+
     #     self.collisionDetection.compute_collision_detection(
     #         broad_phase_method, narrow_phase_method, self.eps
     #     )
@@ -121,21 +137,18 @@ class Simulation(object):
 
     #     self.objects.reset_force()
     #     self.objects.reset_torque()
-    #     self.objects.update_new_positions()
+    #     self.objects.update_new_positions() #IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
 
     def step(self):
         if self.paused:
             return
         self.t += self.dt
         self.cur_step += 1
-        # self.advance(
-        #     self.dt,
-        #     self.t,
-        #     self.method,
-        #     self.broad_phase_method,
-        #     self.narrow_phase_method,
-        # )
-        self.update_meshes()
+        self.advance(
+            self.dt,
+            self.t,
+        )
+        self.update_meshes_and_lines()
         # debug here: e.g. print(self.collisionDetection.sizes)
 
 
@@ -185,9 +198,12 @@ def main():
     # aabb.color = [0.7, 0.7, 0.7]
     # vis.add_geometry(aabb)  # bounding box
 
-    # simulation geometries for rendering
+    #add ellipsoids to visualization
     for i in range(sim.nb_of_ellipsoids):
         vis.add_geometry(sim.objects.meshes[i])
+    
+    #add lines to vizualtiztion
+    vis.add_geometry(sim.objects.lines)
 
     # for i in range(5):  # wireframes of the walls
     #     shell = o3d.geometry.LineSet.create_from_triangle_mesh(
@@ -197,9 +213,11 @@ def main():
 
     while True:
         sim.step()
-
+        
+        #Update of meshes and then of lines
         for mesh in sim.objects.meshes.ravel():
             vis.update_geometry(mesh)
+        vis.update_geometry(sim.objects.lines)
 
         if not vis.poll_events():
             break

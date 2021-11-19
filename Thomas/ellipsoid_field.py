@@ -16,14 +16,17 @@ class EllipsoidField(object):
     #TO DO :
     #   ## Add mass
     #   ## Add Intertia tensor cf page 4 oriented particules
-    #   ## Add Connexity
+    #   ## Add Connexity -> connections
 
-    def __init__(self, radii_array, center_array, rot_array, res = 120, shape=()):
+    def __init__(self, radii_array, center_array, rot_array, connections, res = 120, shape=()):
         self.shape = shape #Shape de la "k-grille" d'ellipsoid, si k = 5 signifie une liste de 5 ellipsoids
-        self.meshes = np.ndarray(shape = self.shape, dtype=o3d.geometry.TriangleMesh)
+        self.meshes = np.ndarray(shape = self.shape, dtype=o3d.geometry.TriangleMesh) #Array of references to the ellipsoids meshes
+        self.lines = o3d.geometry.LineSet() #Ref to the lineSet
+        #Do we really needs to stored them ?
         self.radii_array = radii_array
         self.center_array = center_array
         self.rot_array = rot_array
+        self.connections = connections
 
         if (self.radii_array.shape[:-1] != self.shape) :
             print("Error: radii_array does not have the correct shape!")
@@ -60,6 +63,10 @@ class EllipsoidField(object):
         for dim in shape:
             self.shape_ranges.append(list(range(dim)))
 
+        #create the lines
+        self.lines.points = o3d.utility.Vector3dVector(self.center_array)
+        self.lines.lines = o3d.utility.Vector2iVector(self.connections)
+
         # create the meshes
         n_vertices = np.ndarray(shape = self.shape, dtype=int)
         n_faces = np.ndarray(shape = self.shape, dtype=int)
@@ -89,7 +96,7 @@ class EllipsoidField(object):
         self.nV = ti.field(dtype=ti.i32, shape=self.shape) #Field of number of vertices of each meshes
         self.nF = ti.field(dtype=ti.i32, shape=self.shape)
         self.V = ti.Vector.field(3, ti.f32, (*self.shape, self.max_num_vertices)) #Field of intital vertices array of each ellipsoid
-        self.new_V = ti.Vector.field(3, ti.f32, (*self.shape, self.max_num_vertices)) #Field of current vertices array of each ellipsoid
+        self.new_V = ti.Vector.field(3, ti.f32, (*self.shape, self.max_num_vertices)) #Field of current vertices array of each ellipsoid, after model transfo
         self.F = ti.Vector.field(3, ti.i32, (*self.shape, self.max_num_faces))
         self.C = ti.Vector.field(3, ti.f32, (*self.shape, self.max_num_vertices))
 
@@ -137,6 +144,7 @@ class EllipsoidField(object):
 
         # base object properties
         self.pos = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)
+        #self.new_pos = ti.Vector.field(3, dtype=ti.f32, shape=self.shape) for guessing step before projection
         self.quat = ti.Vector.field(4, dtype=ti.f32, shape=self.shape)
         self.rot = ti.Matrix.field(3, 3, dtype=ti.f32, shape=self.shape)
 
