@@ -133,11 +133,12 @@ class EllipsoidField(object):
         self.connections = ti.Vector.field(2, dtype = ti.i32, shape = self.connections_np.shape[0])
         self.connections.from_numpy(self.connections_np)
 
-        #init base object properties : x, p, velocities, quat, rot, mass
+        #init base object properties : x, p, velocities, quat, rot, mass, radii
         self.init_x = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)
         self.init_quat = ti.Vector.field(4, dtype=ti.f32, shape=self.shape)
         self.init_rot = ti.Matrix.field(3, 3, dtype=ti.f32, shape=self.shape)
         self.init_v = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)
+        self.radii = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)
         self.mass = ti.field(dtype=ti.f32, shape=self.shape)
         self.massInv = ti.field(dtype=ti.f32, shape=self.shape)
         self.ext_force = ti.Vector.field(3, dtype=ti.f32, shape=self.shape) # force on body
@@ -160,11 +161,13 @@ class EllipsoidField(object):
             rot_matrix = ti.Matrix([[r00, r01, r02], [r10, r11, r12], [r20, r21, r22]])
             v = self.velocity_array[e]
             m = self.mass_array[e]
+            radii = self.radii_array[e]
 
             self.init_x[e] = center
             self.init_quat[e] = q
             self.init_rot[e] = rot_matrix
             self.init_v[e] = v
+            self.radii[e] = radii
             self.mass[e] = m
             self.massInv[e] = 1.0 / m
             self.ext_force[e] = m * self.gravity
@@ -249,15 +252,15 @@ class EllipsoidField(object):
         return (self.init_x[idx1] - self.init_x[idx2]).norm()
 
     @ti.func
-    def get_x(self, idx=ti.Vector([])):
+    def get_x(self, idx = ti.Vector([])):
         return self.x[idx]
     
     @ti.func
-    def set_x(self, x, idx=ti.Vector([])):
+    def set_x(self, x, idx = ti.Vector([])):
         self.x[idx] = x
 
     @ti.func
-    def get_p(self, idx=ti.Vector([])):
+    def get_p(self, idx = ti.Vector([])):
         return self.p[idx]
     
     @ti.func
@@ -291,6 +294,13 @@ class EllipsoidField(object):
     def set_colors(self, C, idx=ti.Vector([])):
         for i in range(self.nV[idx]):
             self.C[(*idx, i)] = C[i]
+
+    @ti.func
+    def get_radii(self, idx=ti.Vector([])):
+        '''
+        Return a taichi 3D Vector v such that v.x gives the principal axis, v.y the third (the normal), v.z the second
+        '''
+        return self.radii[idx]
 
     @ti.func
     def get_mass(self, idx=ti.Vector([])):
