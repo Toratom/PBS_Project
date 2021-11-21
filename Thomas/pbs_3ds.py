@@ -14,6 +14,7 @@ class Simulation(object):
     '''
 
     nb_of_ellipsoids = 4
+    nb_of_pairs = 6  # (nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
     radii_array = np.array([[0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]])
     ini_centers = np.array([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.]]) + np.array([0., 20., 0.])
     ini_rotation = np.array([[0., 0., 0., 1.],
@@ -42,8 +43,13 @@ class Simulation(object):
         self.t = 0.0
         self.cur_step = 0
         self.paused = True
+
         self.M_ground = ti.field(dtype=ti.i32, shape=1)
-        self.ground_contacts = self.init_v = ti.Vector.field(2, dtype=ti.f32, shape=self.nb_of_ellipsoids)
+        self.ground_contacts = ti.Vector.field(2, dtype=ti.f32, shape=self.nb_of_ellipsoids)
+
+        self.M_particles = ti.field(dtype=ti.i32, shape=1)
+        self.particle_contacts = ti.Vector.field(2, dtype=ti.f32, shape=self.nb_of_pairs)
+        self.direction_contacts = ti.Vector.field(3, dtype=ti.f32, shape=self.nb_of_pairs)
 
         self.init()
 
@@ -82,7 +88,6 @@ class Simulation(object):
             return
         self.t += self.dt
         self.cur_step += 1
-        print(f"\rNUM_COLLISIONS={self.M_ground[0]}")
         self.advance(
             self.dt,
             self.t,
@@ -105,6 +110,8 @@ class Simulation(object):
         self.prologue_velocities()
         self.prologue_positions()
         self.gen_collision_ground()
+        self.generate_collisions_particle()
+        self.solve_collisions_particles()
         self.solve_collisions_ground()
         self.project_distance_constr()
         self.epilogue()
@@ -204,8 +211,8 @@ class Simulation(object):
     def possible_ground_coll(self, idx: ti.i32):
         radii = self.ellips_field.get_radii(idx)
         first_radius = radii[0]
-        second_radius = radii[1]
-        third_radius = radii[2]
+        third_radius = radii[1]
+        second_radius = radii[2]
         distance_ground = self.ellips_field.get_p(idx)[1]
         return_value = None
         if distance_ground < max(first_radius, third_radius, second_radius):  # approximation of particle with a sphere
@@ -229,6 +236,62 @@ class Simulation(object):
 
             p = self.ellips_field.get_p(idx)
             p[1] = p[1] + d
+            self.ellips_field.set_p(p, idx)
+
+    @ti.func
+    def generate_collisions_particle(self):
+        k = 0
+        for i in range(self.nb_of_ellipsoids):  # approximate collisions using spheres
+            for j in range(i + 1, self.nb_of_ellipsoids):
+                radii1 = self.ellips_field.get_radii(i)
+                max1 = max(radii1[0], radii1[1], radii1[2])
+                pos1 = self.ellips_field.get_x(i)
+
+                radii2 = self.ellips_field.get_radii(j)
+                max2 = max(radii2[0], radii2[1], radii2[2])
+                pos2 = self.ellips_field.get_x(j)
+
+                distance_vector = pos1 - pos2
+                n = distance_vector.normalized()
+                distance = distance_vector.norm()
+
+                if distance < (max1 + max2):  # selection of candidates for collisions
+                    # computing ellipsoids radius in direction n
+                    radius1 = self.compute_radius(i, n)
+                    radius2 = self.compute_radius(j, n)
+                    distance = radius1 + radius2 - distance
+                    if distance > 0:  # detected an approximate collisions.
+                        # The distance between the particles is smaller than the sum of the radii
+                        self.particle_contacts[k][0] = i
+                        self.particle_contacts[k][1] = distance
+                        self.direction_contacts[k] = n
+                        k += 1
+        self.M_particles[0] = k
+
+    @ti.func
+    def compute_radius(self, idx: ti.i32, n):
+        radii = self.ellips_field.get_radii(idx)
+        first_radius = radii[0]
+        third_radius = radii[1]
+        second_radius = radii[2]
+
+        R = self.ellips_field.get_rotation_matrix(idx)
+        elip_matrix = ti.Matrix([[first_radius ** 2, 0, 0], [0, second_radius ** 2, 0], [0, 0, third_radius ** 2]])
+        inv_A = R @ elip_matrix @ R.transpose()
+
+        x = (1 / (ti.sqrt(n.transpose() @ inv_A @ n))[0]) * (inv_A @ n)
+        center = self.ellips_field.get_p(idx)
+        radius = (x - center).norm()
+        return radius
+
+    @ti.func
+    def solve_collisions_particles(self):
+        for i in range(self.M_particles[0]):
+            idx = self.particle_contacts[i][0]
+            d = self.particle_contacts[i][1]
+            n = self.direction_contacts[i]
+            p = self.ellips_field.get_p(idx)
+            p = p + d * n
             self.ellips_field.set_p(p, idx)
 
     @ti.func
