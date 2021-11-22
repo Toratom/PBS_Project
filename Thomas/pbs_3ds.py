@@ -15,8 +15,10 @@ class Simulation(object):
 
     nb_of_ellipsoids = 4
     nb_of_pairs = 6  # (nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
-    radii_array = np.array([[0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]])
-    ini_centers = np.array([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.]]) + np.array([0., 10., 0.])
+    # radii_array = np.array([[0.5, 0.2, 0.5], [0.5, 0.2, 0.5], [0.5, 0.2, 0.5], [0.5, 0.2, 0.5]])
+    radii_array = np.array([[0.5, 0.1, 0.5], [0.1, 0.5, 0.1], [0.5, 0.1, 0.5], [0.5, 0.1, 0.5]])
+    # radii_array = np.array([[0.1, 0.5, 0.1], [0.1, 0.5, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]])
+    ini_centers = np.array([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.]]) + np.array([0., 5., 0.])
     ini_rotation = np.array([[0., 0., 0., 1.],
                              [0., 0., 0., 1.],
                              [0., 0., 0., 1.],
@@ -24,7 +26,7 @@ class Simulation(object):
     connections = np.array([[0, 1], [1, 3], [3, 2], [2, 0]])
     bodies = np.array([0, 0, 0, 0])
     ini_velocities = np.zeros(ini_centers.shape)
-    ini_mass = np.array([10., 10., 10., 10.])
+    ini_mass = np.array([1., 1., 1., 10.])
     gravity = np.array([0., -9.8, 0.])
 
     def __init__(self, res=25):
@@ -108,8 +110,8 @@ class Simulation(object):
         self.prologue_velocities()
         self.prologue_positions()
         self.gen_collision_ground()
-        self.generate_collisions_particle()
-        self.solve_collisions_particles()
+        # self.generate_collisions_particle()
+        # self.solve_collisions_particles()
         self.solve_collisions_ground()
         self.project_distance_constr(1.)
         self.epilogue()
@@ -202,7 +204,7 @@ class Simulation(object):
         for i in range(self.nb_of_ellipsoids):
             # Looking for collision candidates
             d = self.possible_ground_coll(i)
-            if d > 0:
+            if d > 0. : 
                 self.ground_contacts[k][0] = i
                 self.ground_contacts[k][1] = d
                 k += 1
@@ -211,22 +213,24 @@ class Simulation(object):
     @ti.func
     def possible_ground_coll(self, idx: ti.i32):
         radii = self.ellips_field.get_radii(idx)
-        first_radius = radii[0]
-        third_radius = radii[1]
-        second_radius = radii[2]
+        a = radii.x #radii[0] #? radii[0] corresponds to a : raddius in X_elli
+        b = radii.y #radii[1] #? radii[1] corresponds to b : raddius in Y_elli
+        c = radii.z #radii[2] #? radii[2] corresponds to c : raddius in Z_elli
         distance_ground = self.ellips_field.get_p(idx)[1]
-        return_value = None
-        if distance_ground < max(first_radius, third_radius, second_radius):  # approximation of particle with a sphere
+        return_value = None #Maybe should be initialized differently it is a float
+        if distance_ground < max(a, b, c):  # approximation of particle with a sphere
             R = self.ellips_field.get_rotation_matrix(idx)
-            n = ti.Vector([0, 1, 0])
-            elip_matrix = ti.Matrix([[first_radius ** 2, 0, 0], [0, second_radius ** 2, 0], [0, 0, third_radius ** 2]])
+            n = ti.Vector([0., 1., 0.])
+            elip_matrix = ti.Matrix([[a * a, 0., 0.], [0., b * b, 0.], [0., 0., c * c]]) #? should be diag[a**2, b**2, c**2]
             inv_A = R @ elip_matrix @ R.transpose()
 
-            x1 = (1 / (ti.sqrt(n.transpose() @ inv_A @ n))[0]) * (inv_A @ n)
-            x2 = - x1
+            x1_loc = (1. / (ti.sqrt(n.transpose() @ inv_A @ n))[0]) * (inv_A @ n)
+            x2_loc = - x1_loc
+            x1 = self.ellips_field.get_p(idx) + x1_loc
+            x2 = self.ellips_field.get_p(idx) + x2_loc
             x = x1[1] if x1[1] < x2[1] else x2[1]
 
-            return_value = abs(x) if x < 0 else x
+            return_value = -x if x < 0. else 0. #? return_value is 0 if no collision
         return return_value
 
     @ti.func

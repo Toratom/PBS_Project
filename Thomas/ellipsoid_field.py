@@ -59,7 +59,7 @@ class EllipsoidField(object):
         self.num_meshes = 0
         for e in itertools.product(*self.shape_ranges):
             radii = self.radii_array[e]
-            self.meshes[e] = o3d.geometry.TriangleMesh.create_sphere(radius = radii[0], resolution = res)
+            self.meshes[e] = o3d.geometry.TriangleMesh.create_sphere(radius = 1.0, resolution = res)
             # elli.paint_uniform_color([1.0, 0.4, 0.2])
             #Non uni scaling to sphere to ellipsoid
             T = np.zeros((4, 4), dtype = float)
@@ -106,6 +106,29 @@ class EllipsoidField(object):
         #init connections
         self.connections = ti.Vector.field(2, dtype = ti.i32, shape = self.connections_np.shape[0])
         self.connections.from_numpy(self.connections_np)
+
+        #init adjacency list, create a list then a field
+        adjacency_list = [[] for _ in range(self.nb_of_particules)]
+        for e in self.connections_np :
+            a, b = e
+            adjacency_list[a].append(b)
+            adjacency_list[b].append(a)
+
+        max_p_neighbors = 0
+        for i in range(self.nb_of_particules) :
+            p_neighbors = adjacency_list[i]
+            if len(p_neighbors) > max_p_neighbors :
+                max_p_neighbors = len(p_neighbors)
+            adjacency_list[i] = [len((p_neighbors))] + p_neighbors
+
+        adjacency_list_np = np.zeros((self.nb_of_particules, max_p_neighbors + 1), dtype = int) #+1 as add the len at begining
+        for i in range(self.nb_of_particules) :
+            p_neighbors = adjacency_list[i]
+            for j in range(len(p_neighbors)) :
+                adjacency_list_np[i, j] = p_neighbors[j]
+        #Init the scalar field associated
+        self.adjacency = ti.field(dtype=ti.i32, shape = (self.nb_of_particules, max_p_neighbors + 1))
+        self.adjacency.from_numpy(adjacency_list_np)
         
         #init bodies_indexes
         #Create the numpy array corresponding to the field
@@ -260,14 +283,31 @@ class EllipsoidField(object):
     @ti.func
     def get_body_indexes(self, idx) :
         '''
-        Give a 2D int vector v such that v.x = index_of_first_particule_of_body_idx,
-        and v.y = index_of_last_particule_of_body_idx + 1
-        Such that to scan a body k :
+        Give a 2D int vector v such that
+            - v.x = index_of_first_particule_of_body_idx,
+            - v.y = index_of_last_particule_of_body_idx + 1
+        To scan a body k :
         v = get_body_indexes(k)
         for idx in range(v.x, v.y) :
             ...
         '''
         return self.bodies_indexes[idx]
+    
+    @ti.func
+    def get_adjacency(self, idx) :
+        '''
+        Give a 1D scalar field F, such that 
+            - Its first value F[0] is the number of neighbors of particule idx
+            - The following value are the index of its neighbors
+        adj = get_adjacency(idx)
+        for i in range(1, adj[0] + 1) :
+            print(adj[i])
+        '''
+        return self.adjacency[idx]
+    
+    @ti.func
+    def get_nb_of_neighbors(self, idx) :
+        return self.adjacency[idx][0]
 
     @ti.func
     def get_x(self, idx = ti.Vector([])):
@@ -316,7 +356,7 @@ class EllipsoidField(object):
     @ti.func
     def get_radii(self, idx=ti.Vector([])):
         '''
-        Return a taichi 3D Vector v such that v.x gives the principal axis, v.y the third (the normal), v.z the second
+        Return a taichi 3D Vector v such that v.x gives the principal axis in x, v.y the third (the normal) in y, v.z the second in z
         '''
         return self.radii[idx]
 
