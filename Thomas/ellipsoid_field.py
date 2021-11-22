@@ -15,13 +15,13 @@ class ObjType:
 class EllipsoidField(object):
     #TO DO :
     #   ## Add Intertia tensor cf page 4 oriented particules
-    #   ## Add stifness per constraints
 
     def __init__(self,
      radii_array,
      center_array,
      rot_array,
      connections,
+     bodies, #List of bodies index, gives for each particules the body it belongs to, should be incresing [0,0,1,1] OK [0,1,0,1] NOPE [0,0,2,2] OK
      velocity_array,
      mass_array,
      gravity,
@@ -40,34 +40,8 @@ class EllipsoidField(object):
         self.mass_array = mass_array
         self.gravity = ti.Vector([gravity[0], gravity[1], gravity[2]])
 
-        if (self.radii_array.shape[:-1] != self.shape) :
-            print("Error: radii_array does not have the correct shape!")
-            print(self.radii_array.shape[:-1], "instead of", self.shape)
-            return
-
-        if (self.center_array.shape[:-1] != self.shape) :
-            print("Error: center_array does not have the correct shape!")
-            print(self.center_array.shape[:-1], "instead of", self.shape)
-            return
-        
-        if (self.rot_array.shape[:-1] != self.shape) :
-            print("Error: rot_array does not have the correct shape!")
-            print(self.rot_array.shape[:-1], "instead of", self.shape)
-            return
-        
-        if (self.radii_array.shape[-1] != 3) :
-            print("Error: radii_array does not have the correct shape!")
-            print(self.radii_array.shape[-1], "instead of", 3)
-            return
-        
-        if (self.center_array.shape[-1] != 3) :
-            print("Error: center_array does not have the correct shape!")
-            print(self.center_array.shape[-1], "instead of", 3)
-            return
-        
-        if (self.rot_array.shape[-1] != 4) :
-            print("Error: rot_array does not have the correct shape!")
-            print(self.rot_array.shape[-1], "instead of", 4)
+        if (len(shape) != 1) :
+            print("ERROR Shape must be 1D") #Because bodies_indexes assumes 1D
             return
 
         # create ranges to iterate over
@@ -132,6 +106,34 @@ class EllipsoidField(object):
         #init connections
         self.connections = ti.Vector.field(2, dtype = ti.i32, shape = self.connections_np.shape[0])
         self.connections.from_numpy(self.connections_np)
+        
+        #init bodies_indexes
+        #Create the numpy array corresponding to the field
+        bodies_indexes_list = []
+        body_idx = 0
+        begin_index = 0
+        ending_pos = 1
+        i = 0
+        while (i < len(bodies)) :
+            cur_body = bodies[i]
+            while (i + 1 < len(bodies)) and (cur_body == bodies[i + 1]) :
+                i += 1
+                ending_pos += 1
+            #Body found
+            bodies_indexes_list.append([begin_index, ending_pos])
+            #Next body
+            body_idx += 1
+            begin_index = ending_pos
+            ending_pos += 1
+            i += 1
+        bodies_indexes_np = np.array(bodies_indexes_list)
+        #At the end body_idx gives the number of bodies
+        self.nb_of_bodies = body_idx
+        #Create the field bodies_index : it is a field of 2D int vector, of len nb_of_bodies.
+        #Each vectors gives for its corresponding body, index_of_first_particule, index_of_last_particule + 1
+        #Such that to scan a body k : for idx in range(bodies_indexes[k][0], bodies_indexes[k][1]) : ...
+        self.bodies_indexes = ti.Vector.field(2, dtype = ti.i32, shape = body_idx)
+        self.bodies_indexes.from_numpy(bodies_indexes_np)
 
         #init base object properties : x, p, velocities, quat, rot, mass, radii
         self.init_x = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)
@@ -142,7 +144,7 @@ class EllipsoidField(object):
         self.mass = ti.field(dtype=ti.f32, shape=self.shape)
         self.massInv = ti.field(dtype=ti.f32, shape=self.shape)
         self.ext_force = ti.Vector.field(3, dtype=ti.f32, shape=self.shape) # force on body
-        for e in itertools.product(*self.shape_ranges):
+        for e in itertools.product(*self.shape_ranges) :
             center = self.center_array[e]
             q = self.rot_array[e]
             # First row of the rotation matrix
@@ -250,6 +252,22 @@ class EllipsoidField(object):
     @ti.func
     def get_rest_distance(self, idx1, idx2) :
         return (self.init_x[idx1] - self.init_x[idx2]).norm()
+    
+    @ti.func
+    def get_nb_of_bodies(self) :
+        return self.nb_of_bodies
+    
+    @ti.func
+    def get_body_indexes(self, idx) :
+        '''
+        Give a 2D int vector v such that v.x = index_of_first_particule_of_body_idx,
+        and v.y = index_of_last_particule_of_body_idx + 1
+        Such that to scan a body k :
+        v = get_body_indexes(k)
+        for idx in range(v.x, v.y) :
+            ...
+        '''
+        return self.bodies_indexes[idx]
 
     @ti.func
     def get_x(self, idx = ti.Vector([])):

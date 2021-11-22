@@ -16,14 +16,15 @@ class Simulation(object):
     nb_of_ellipsoids = 4
     nb_of_pairs = 6  # (nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
     radii_array = np.array([[0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5]])
-    ini_centers = np.array([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.]]) + np.array([0., 20., 0.])
+    ini_centers = np.array([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.]]) + np.array([0., 10., 0.])
     ini_rotation = np.array([[0., 0., 0., 1.],
                              [0., 0., 0., 1.],
                              [0., 0., 0., 1.],
                              [0., 0., 0., 1.]])
     connections = np.array([[0, 1], [1, 3], [3, 2], [2, 0]])
+    bodies = np.array([0, 0, 0, 0])
     ini_velocities = np.zeros(ini_centers.shape)
-    ini_mass = np.array([1., 1., 1., 10.])
+    ini_mass = np.array([10., 10., 10., 10.])
     gravity = np.array([0., -9.8, 0.])
 
     def __init__(self, res=25):
@@ -33,6 +34,7 @@ class Simulation(object):
                                            self.ini_centers,
                                            self.ini_rotation,
                                            self.connections,
+                                           self.bodies,
                                            self.ini_velocities,
                                            self.ini_mass,
                                            self.gravity,
@@ -44,10 +46,10 @@ class Simulation(object):
         self.cur_step = 0
         self.paused = True
 
-        self.M_ground = ti.field(dtype=ti.i32, shape=1)
+        self.M_ground = ti.field(dtype=ti.i32, shape = ())
         self.ground_contacts = ti.Vector.field(2, dtype=ti.f32, shape=self.nb_of_ellipsoids)
 
-        self.M_particles = ti.field(dtype=ti.i32, shape=1)
+        self.M_particles = ti.field(dtype=ti.i32, shape = ())
         self.particle_contacts = ti.Vector.field(2, dtype=ti.f32, shape=self.nb_of_pairs)
         self.direction_contacts = ti.Vector.field(3, dtype=ti.f32, shape=self.nb_of_pairs)
 
@@ -101,19 +103,15 @@ class Simulation(object):
             t: ti.f32
     ):
         # Corresponds to one iteration of the position based algo page 3
-        # T = ti.Vector([0.0,- 0.01, 0.0])
-        # for i in range(self.nb_of_ellipsoids):
-        #     pos = self.ellips_field.get_x(i)
-        #     pos += T
-        #     self.ellips_field.set_x(pos, i)
+        #Here stifness defined for a one loop solver (cf page 5 position based dynamics)
 
         self.prologue_velocities()
         self.prologue_positions()
         self.gen_collision_ground()
-        self.generate_collisions_particle()
-        self.solve_collisions_particles()
+        # self.generate_collisions_particle()
+        # self.solve_collisions_particles()
         self.solve_collisions_ground()
-        self.project_distance_constr()
+        self.project_distance_constr(1.)
         self.epilogue()
 
         self.ellips_field.update_new_positions()  # IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
@@ -177,12 +175,15 @@ class Simulation(object):
 
             v = v + self.dt * inv_m * f
             # Damp velocities
-            v = self.damp(v)
+            v = self.damp(v, 1.)
 
             self.ellips_field.set_velocity(v, i)
 
     @ti.func
-    def damp(self, velocity):
+    def damp(self, velocity, stifness):
+        '''
+        stifness must be a float between 0 and 1
+        '''
         return velocity
 
     @ti.func
@@ -205,7 +206,7 @@ class Simulation(object):
                 self.ground_contacts[k][0] = i
                 self.ground_contacts[k][1] = d
                 k += 1
-        self.M_ground[0] = k  # rectification of the number of collisions with the ground after for cycle
+        self.M_ground[None] = k  # rectification of the number of collisions with the ground after for cycle
 
     @ti.func
     def possible_ground_coll(self, idx: ti.i32):
@@ -230,8 +231,8 @@ class Simulation(object):
 
     @ti.func
     def solve_collisions_ground(self):
-        for i in range(self.M_ground[0]):
-            idx = self.ground_contacts[i][0]
+        for i in range(self.M_ground[None]):
+            idx = int(self.ground_contacts[i][0])
             d = self.ground_contacts[i][1]
 
             p = self.ellips_field.get_p(idx)
@@ -266,7 +267,7 @@ class Simulation(object):
                         self.particle_contacts[k][1] = distance
                         self.direction_contacts[k] = n
                         k += 1
-        self.M_particles[0] = k
+        self.M_particles[None] = k
 
     @ti.func
     def compute_radius(self, idx: ti.i32, n):
@@ -276,7 +277,7 @@ class Simulation(object):
         second_radius = radii[2]
 
         R = self.ellips_field.get_rotation_matrix(idx)
-        elip_matrix = ti.Matrix([[first_radius ** 2, 0, 0], [0, second_radius ** 2, 0], [0, 0, third_radius ** 2]])
+        elip_matrix = ti.Matrix([[first_radius ** 2, 0, 0], [0, second_radius ** 2, 0], [0, 0, third_radius ** 2]]) #R is in the same order as radii x,y,z?
         inv_A = R @ elip_matrix @ R.transpose()
 
         x = (1 / (ti.sqrt(n.transpose() @ inv_A @ n))[0]) * (inv_A @ n)
@@ -286,16 +287,20 @@ class Simulation(object):
 
     @ti.func
     def solve_collisions_particles(self):
-        for i in range(self.M_particles[0]):
-            idx = self.particle_contacts[i][0]
+        for i in range(self.M_particles[None]) :    
+            idx = int(self.particle_contacts[i][0])
             d = self.particle_contacts[i][1]
             n = self.direction_contacts[i]
             p = self.ellips_field.get_p(idx)
             p = p + d * n
             self.ellips_field.set_p(p, idx)
+            pass
 
     @ti.func
-    def project_distance_constr(self):
+    def project_distance_constr(self, stiffness):
+        '''
+        stiffness must be a float between 0 and 1
+        '''
         for i in range(self.ellips_field.get_nb_of_edges()):
             edge = self.ellips_field.get_edge(i)  # gives a 2D taichi vector
 
@@ -312,8 +317,8 @@ class Simulation(object):
             delta1 = - (inv_m1 / inv_m_total) * distance * n
             delta2 = (inv_m2 / inv_m_total) * distance * n
 
-            p1 += delta1
-            p2 += delta2
+            p1 += stiffness * delta1
+            p2 += stiffness * delta2
 
             self.ellips_field.set_p(p1, p1_idx)
             self.ellips_field.set_p(p2, p2_idx)
