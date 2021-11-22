@@ -110,8 +110,8 @@ class Simulation(object):
         self.prologue_velocities()
         self.prologue_positions()
         self.gen_collision_ground()
-        # self.generate_collisions_particle()
-        # self.solve_collisions_particles()
+        self.generate_collisions_particle()
+        self.solve_collisions_particles()
         self.solve_collisions_ground()
         self.project_distance_constr(1.)
         self.epilogue()
@@ -284,9 +284,8 @@ class Simulation(object):
         elip_matrix = ti.Matrix([[first_radius ** 2, 0, 0], [0, second_radius ** 2, 0], [0, 0, third_radius ** 2]]) #R is in the same order as radii x,y,z?
         inv_A = R @ elip_matrix @ R.transpose()
 
-        x = (1 / (ti.sqrt(n.transpose() @ inv_A @ n))[0]) * (inv_A @ n)
-        center = self.ellips_field.get_p(idx)
-        radius = (x - center).norm()
+        x_loc = (1 / (ti.sqrt(n.transpose() @ inv_A @ n))[0]) * (inv_A @ n)
+        radius = (x_loc).norm()
         return radius
 
     @ti.func
