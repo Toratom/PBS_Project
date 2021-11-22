@@ -16,7 +16,7 @@ class Simulation(object):
     nb_of_ellipsoids = 4
     nb_of_pairs = 6  # (nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
     # radii_array = np.array([[0.5, 0.2, 0.5], [0.5, 0.2, 0.5], [0.5, 0.2, 0.5], [0.5, 0.2, 0.5]])
-    radii_array = np.array([[0.5, 0.1, 0.5], [0.1, 0.5, 0.1], [0.5, 0.1, 0.5], [0.5, 0.1, 0.5]])
+    radii_array = np.array([[0.5, 0.1, 0.5], [0.1, 0.5, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]])
     # radii_array = np.array([[0.1, 0.5, 0.1], [0.1, 0.5, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]])
     ini_centers = np.array([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.]]) + np.array([0., 5., 0.])
     ini_rotation = np.array([[0., 0., 0., 1.],
