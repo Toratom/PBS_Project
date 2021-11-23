@@ -4,6 +4,7 @@ import taichi as ti
 import open3d as o3d
 from taichi.lang.ops import sqrt
 from ellipsoid_field import EllipsoidField
+import utils
 
 ti.init(arch=ti.cpu)
 
@@ -27,6 +28,8 @@ class Simulation(object):
     connections = np.array([[0, 1], [1, 3], [3, 2], [2, 0]])
     bodies = np.array([0, 0, 0, 0])
     ini_velocities = np.zeros(ini_centers.shape)
+    ini_angular_velocities = np.zeros(ini_centers.shape)
+    ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
     ini_mass = np.array([1., 1., 1., 10.])
     gravity = np.array([0., -9.8, 0.])
 
@@ -39,6 +42,7 @@ class Simulation(object):
                                            self.connections,
                                            self.bodies,
                                            self.ini_velocities,
+                                           self.ini_angular_velocities,
                                            self.ini_mass,
                                            self.gravity,
                                            res=res,
@@ -100,16 +104,14 @@ class Simulation(object):
         self.update_meshes_and_lines()
 
     @ti.kernel
-    def advance(
-            self,
-            dt: ti.f32,
-            t: ti.f32
-    ):
+    def advance(self, dt: ti.f32, t: ti.f32) :
         # Corresponds to one iteration of the position based algo page 3
         #Here stifness defined for a one loop solver (cf page 5 position based dynamics)
 
         self.prologue_velocities()
+        #Seems there is not need to have a prologue for angular velocties because there is not ext. torque
         self.prologue_positions()
+        self.prologue_rotations()
         self.gen_collision_ground()
         self.generate_collisions_particle_T()
         #self.generate_collisions_particle()
@@ -120,51 +122,6 @@ class Simulation(object):
 
         self.ellips_field.update_new_positions()  # IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
 
-    #     self.collisionDetection.compute_collision_detection(
-    #         broad_phase_method, narrow_phase_method, self.eps
-    #     )
-
-    #     for i in range(self.NUM_CUBES + 5):
-    #         self.ellips_field.apply_force_to_COM(ti.Vector(self.gravity), i)
-
-    #     for i in range(self.NUM_CUBES + 5):
-    #         # integrate velocities
-    #         self.ellips_field.set_linear_momentum(
-    #             self.ellips_field.get_linear_momentum(i) + dt * self.ellips_field.get_force(i), i
-    #         )
-    #         self.ellips_field.set_angular_momentum(
-    #             self.ellips_field.get_angular_momentum(i) + dt * self.ellips_field.get_torque(i),
-    #             i,
-    #         )
-
-    #         # integrate position
-    #         self.ellips_field.set_p(
-    #             self.ellips_field.get_p(i) + dt * self.ellips_field.get_linear_velocity(i),
-    #             i,
-    #         )
-
-    #         # integrate rotation (same as in ex2)
-    #         w = self.ellips_field.get_angular_velocity(i)
-
-    #         if method == self.METHOD_MATRIX:
-    #             W = utils.skew(w)
-    #             R = self.ellips_field.get_rotation_matrix(i)
-    #             self.ellips_field.set_rotation_matrix(R + dt * (W @ R), i)
-    #         elif method == self.METHOD_MATRIX_ORTH:
-    #             W = utils.skew(w)
-    #             R = self.ellips_field.get_rotation_matrix(i)
-    #             U, sigma, V = ti.svd(R + dt * (W @ R), ti.f32)
-    #             self.ellips_field.set_rotation_matrix(U @ V.transpose(), i)
-    #         elif method == self.METHOD_QUATERNION:
-    #             wq = ti.Vector([w.x, w.y, w.z, 0])
-    #             q = self.ellips_field.get_rotation(i)
-    #             dq = utils.quaternion_multiply(wq, q)
-    #             new_q = q + 0.5 * dt * dq
-    #             self.ellips_field.set_rotation(new_q.normalized(), i)
-
-    #     self.ellips_field.reset_force()
-    #     self.ellips_field.reset_torque()
-    #     self.ellips_field.update_new_positions() #IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
 
     @ti.func
     def prologue_velocities(self):
@@ -199,6 +156,20 @@ class Simulation(object):
             p = x + self.dt * v
 
             self.ellips_field.set_p(p, i)
+
+    @ti.func
+    def prologue_rotations(self):
+        for i in range(self.nb_of_ellipsoids):
+            #I use here the integration of q saw in lectures, not the one propose
+            w = self.ellips_field.get_angular_velocity(i)
+            wq = ti.Vector([w.x, w.y, w.z, 0])
+            q = self.ellips_field.get_rotation(i)
+            dq = 0.5 * self.dt * utils.quaternion_multiply(wq, q)
+
+            predicted_q = q + dq
+            predicted_q = predicted_q.normalized()
+
+            self.ellips_field.set_predicted_rotation(predicted_q, i)
 
     @ti.func
     def gen_collision_ground(self):
@@ -387,6 +358,14 @@ class Simulation(object):
 
             self.ellips_field.set_velocity((p - x) / self.dt, i)
             self.ellips_field.set_x(p, i)
+
+            q_inv = utils.quaternion_inverse(self.ellips_field.get_rotation(i))
+            new_q = self.ellips_field.get_predicted_rotation(i)
+            qq = utils.quaternion_multiply(new_q, q_inv)
+            w = utils.quaternion_to_angle(qq) / self.dt * utils.quaternion_to_axis(qq)
+
+            self.ellips_field.set_rotation(new_q, i)
+            self.ellips_field.set_angular_velocity(w, i)
 
 
 def main():

@@ -23,6 +23,7 @@ class EllipsoidField(object):
      connections,
      bodies, #List of bodies index, gives for each particules the body it belongs to, should be incresing [0,0,1,1] OK [0,1,0,1] NOPE [0,0,2,2] OK
      velocity_array,
+     angular_velocity_array,
      mass_array,
      gravity,
      res = 120, shape=()):
@@ -163,6 +164,7 @@ class EllipsoidField(object):
         self.init_quat = ti.Vector.field(4, dtype=ti.f32, shape=self.shape)
         self.init_rot = ti.Matrix.field(3, 3, dtype=ti.f32, shape=self.shape)
         self.init_v = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)
+        self.init_w = ti.Vector.field(3, dtype = ti.f32, shape = self.shape)
         self.radii = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)
         self.mass = ti.field(dtype=ti.f32, shape=self.shape)
         self.massInv = ti.field(dtype=ti.f32, shape=self.shape)
@@ -185,6 +187,7 @@ class EllipsoidField(object):
             # 3x3 rotation matrix
             rot_matrix = ti.Matrix([[r00, r01, r02], [r10, r11, r12], [r20, r21, r22]])
             v = self.velocity_array[e]
+            w = angular_velocity_array[e]
             m = self.mass_array[e]
             radii = self.radii_array[e]
 
@@ -192,6 +195,7 @@ class EllipsoidField(object):
             self.init_quat[e] = q
             self.init_rot[e] = rot_matrix
             self.init_v[e] = v
+            self.init_w[e] = w
             self.radii[e] = radii
             self.mass[e] = m
             self.massInv[e] = 1.0 / m
@@ -203,14 +207,16 @@ class EllipsoidField(object):
         self.p = ti.Vector.field(3, dtype=ti.f32, shape=self.shape) #p for guessing step before projection
         self.quat = ti.Vector.field(4, dtype=ti.f32, shape=self.shape)
         self.rot = ti.Matrix.field(3, 3, dtype=ti.f32, shape=self.shape)
+        self.new_quat = ti.Vector.field(4, dtype=ti.f32, shape=self.shape)
+        self.new_rot = ti.Matrix.field(3, 3, dtype=ti.f32, shape=self.shape)
         self.v = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)  # linear velocity
+        self.w = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)  # angular velocity
 
         #TO DO :
         # rigid object properties
         # self.type = ti.field(dtype=ti.i32, shape=self.shape)
         # self.inertia = ti.Matrix.field(3, 3, dtype=ti.f32, shape=self.shape)
         # self.inertiaInv = ti.Matrix.field(3, 3, dtype=ti.f32, shape=self.shape)
-        # self.w = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)  # angular velocity
         # self.torque = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)  # torque
 
         self.reset_members()
@@ -229,7 +235,10 @@ class EllipsoidField(object):
             self.p[idx] = self.init_x[idx]
             self.quat[idx] = self.init_quat[idx]
             self.rot[idx] = self.init_rot[idx]
+            self.new_quat[idx] = self.init_quat[idx]
+            self.new_rot[idx] = self.init_rot[idx]
             self.v[idx] = self.init_v[idx]
+            self.w[idx] = self.init_w[idx]
             self.ext_force[idx] = self.mass[idx] * self.gravity
             # self.mass[idx] = 1.0
             # self.massInv[idx] = 1.0 / self.mass[idx]
@@ -322,26 +331,44 @@ class EllipsoidField(object):
         return self.p[idx]
     
     @ti.func
-    def set_p(self, p, idx=ti.Vector([])):
+    def set_p(self, p, idx = ti.Vector([])):
         self.p[idx] = p
     
     @ti.func
-    def get_rotation(self, idx=ti.Vector([])):
+    def get_rotation(self, idx = ti.Vector([])):
         return self.quat[idx]
 
     @ti.func
-    def get_rotation_matrix(self, idx=ti.Vector([])):
+    def get_rotation_matrix(self, idx = ti.Vector([])):
         return self.rot[idx]
     
     @ti.func
-    def set_rotation(self, q, idx=ti.Vector([])):
+    def set_rotation(self, q, idx = ti.Vector([])):
         self.quat[idx] = q
         self.rot[idx] = utils.quaternion_to_matrix(q)
-
+    
     @ti.func
     def set_rotation_matrix(self, R, idx=ti.Vector([])):
         self.rot[idx] = R
         self.quat[idx] = utils.matrix_to_quaternion(R)
+    
+    @ti.func
+    def get_predicted_rotation(self, idx = ti.Vector([])) :
+        return self.new_quat[idx]
+    
+    @ti.func
+    def get_predicted_rotation_matrix(self, idx = ti.Vector([])) :
+        return self.new_rot[idx]
+    
+    @ti.func
+    def set_predicted_rotation(self, q, idx = ti.Vector([])) : #From a q useful during the prediction/integration step
+        self.new_quat[idx] = q
+        self.new_rot[idx] = utils.quaternion_to_matrix(q)
+    
+    @ti.func
+    def set_predicted_rotation_matrix(self, mat, idx = ti.Vector([])) : #From a mat as shape matching gives a matrix
+        self.new_rot[idx] = mat
+        self.new_quat[idx] = utils.matrix_to_quaternion(mat)
     
     @ti.func
     def set_color(self, c, idx=ti.Vector([])):
@@ -384,6 +411,14 @@ class EllipsoidField(object):
         self.v[idx] = v
     
     @ti.func
+    def get_angular_velocity(self, idx=ti.Vector([])):
+        return self.w[idx]
+    
+    @ti.func
+    def set_angular_velocity(self, w, idx = ti.Vector([])) :
+        self.w[idx] = w
+
+    @ti.func
     def get_ext_force(self, idx=ti.Vector([])):
         return self.ext_force[idx]
     
@@ -414,14 +449,6 @@ class EllipsoidField(object):
     # @ti.func
     # def get_angular_momentum(self, idx=ti.Vector([])):
     #     return self.get_inertia_world(idx) @ self.w[idx]
-
-    # @ti.func
-    # def get_linear_velocity(self, idx=ti.Vector([])):
-    #     return self.v[idx]
-
-    # @ti.func
-    # def get_angular_velocity(self, idx=ti.Vector([])):
-    #     return self.w[idx]
 
     # @ti.func
     # def get_velocity(self, p, idx=ti.Vector([])):

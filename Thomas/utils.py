@@ -52,6 +52,37 @@ def matrix_to_quaternion(M):
     q = ti.Vector([qx, qy, qz, qw])
     return q
 
+@ti.func
+def quaternion_to_angle(q) :
+    #https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/index.htm
+
+    if (q.w > 1) :
+        #The given q is not a unit q, needs to be normalized :
+        q = q.normalized()
+    angle = 2 * ti.acos(q.w)
+
+    #If angle to close to zero returns 0 cf article required for stability
+    if angle < 0.001 :
+        angle = 0.
+
+    return angle
+
+@ti.func
+def quaternion_to_axis(q) :
+    #https://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToAngle/index.htm
+
+    if (q.w > 1.) :
+        #The given q is not a unit q, needs to be normalized :
+        q = q.normalized()
+    s = ti.sqrt(1 - q.w**2)
+
+    axis = ti.Vector([q.x, q.y, q.z])
+    if (s > 0.001) : #Test to avoid division by 0, if 0 means angle = 0 so the axis is not significant
+        axis.x = q.x / s
+        axis.y = q.y / s
+        axis.z = q.z / s
+
+    return axis
 
 @ti.func
 def quaternion_inverse(q):
