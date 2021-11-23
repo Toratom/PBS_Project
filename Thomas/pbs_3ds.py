@@ -15,22 +15,41 @@ class Simulation(object):
     A simulation is made of ellipsoid and a PBS solver
     '''
 
-    nb_of_ellipsoids = 4
-    nb_of_pairs = 6  # (nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
+    # nb_of_ellipsoids = 4
+    # nb_of_pairs = 6  # (nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
+    # #radii_array = np.array([[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2]])
+    # radii_array = np.array([[0.5, 0.1, 0.5], [0.1, 0.5, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]])
+    # #radii_array = np.array([[0.1, 0.5, 0.1], [0.1, 0.5, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]])
+    # ini_centers = np.array([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.]]) + np.array([0., 5., 0.])
+    # ini_rotation = np.array([[0., 0., 0., 1.],
+    #                          [0., 0., 0., 1.],
+    #                          [0., 0., 0., 1.],
+    #                          [0., 0., 0., 1.]])
+    # connections = np.array([[0, 1], [1, 3], [3, 2], [2, 0]])
+    # bodies = np.array([0, 0, 0, 0])
+    # ini_velocities = np.zeros(ini_centers.shape)
+    # ini_mass = np.array([1., 1., 1., 10.])
+
+    nb_of_ellipsoids = 8
+    nb_of_pairs = 12#(nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
     #radii_array = np.array([[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2]])
-    radii_array = np.array([[0.5, 0.1, 0.5], [0.1, 0.5, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]])
+    radii_array = np.array([[0.5, 0.1, 0.5], [0.1, 0.5, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1],[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2]])
     #radii_array = np.array([[0.1, 0.5, 0.1], [0.1, 0.5, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]])
-    ini_centers = np.array([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.]]) + np.array([0., 5., 0.])
+    ini_centers = np.array([[0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [1., 1., 0.],[1.5, 1.5, 0.], [2.5, 0., 0.], [0., 2.5, 0.], [2.5, 2.5, 0.]]) + np.array([0., 5., 0.])
     ini_rotation = np.array([[0., 0., 0., 1.],
                              [0., 0., 0., 1.],
                              [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
                              [0., 0., 0., 1.]])
-    connections = np.array([[0, 1], [1, 3], [3, 2], [2, 0]])
-    bodies = np.array([0, 0, 0, 0])
+    connections = np.array([[0, 1], [1, 3], [3, 2], [2, 0], [4, 5], [5, 7], [7, 6], [6, 4]])
+    bodies = np.array([0, 0, 0, 0, 1, 1, 1, 1])
     ini_velocities = np.zeros(ini_centers.shape)
     ini_angular_velocities = np.zeros(ini_centers.shape)
-    ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
-    ini_mass = np.array([1., 1., 1., 10.])
+    #ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
+    ini_mass = np.array([1., 1., 1., 10.,1., 10., 1., 1.])
     gravity = np.array([0., -9.8, 0.])
 
     def __init__(self, res=25):
@@ -106,11 +125,12 @@ class Simulation(object):
     @ti.kernel
     def advance(self, dt: ti.f32, t: ti.f32) :
         # Corresponds to one iteration of the position based algo page 3
-        #Here stifness defined for a one loop solver (cf page 5 position based dynamics)
+        #Here stiffness defined for a one loop solver (cf page 5 position based dynamics)
 
         self.prologue_velocities()
-        #Seems there is not need to have a prologue for angular velocties because there is not ext. torque
+        self.damp_velocities(1.)
         self.prologue_positions()
+        #Seems there is not need to have a prologue for angular velocties because there is not ext. torque
         self.prologue_rotations()
         self.gen_collision_ground()
         self.generate_collisions_particle_T()
@@ -125,6 +145,7 @@ class Simulation(object):
 
     @ti.func
     def prologue_velocities(self):
+
         for i in range(self.nb_of_ellipsoids):
             # Update velocities using forces external
             v = self.ellips_field.get_velocity(i)
@@ -135,17 +156,57 @@ class Simulation(object):
             # if (i == 0 or i == 1) : f = 5*f
 
             v = v + self.dt * inv_m * f
-            # Damp velocities
-            v = self.damp(v, 1.)
 
             self.ellips_field.set_velocity(v, i)
 
     @ti.func
-    def damp(self, velocity, stifness):
+    def damp_velocities(self, stiffness):
         '''
-        stifness must be a float between 0 and 1
+        Damp velocities body per body
+        stiffness must be a float between 0 and 1
         '''
-        return velocity
+        
+        for index_body in range(len(self.bodies)):
+            bodies_indexes = self.ellips_field.get_body_indexes(index_body)
+            idx_last_ellips_body = bodies_indexes[1]
+            idx_first_ellips_body = bodies_indexes[0]
+
+            x_cm = ti.Vector([0., 0., 0.])
+            v_cm = ti.Vector([0., 0., 0.])
+            sum_mass = 0
+            I = ti.Matrix([[0., 0., 0.], [0., 0., 0.], [0., 0., 0.]])
+            L = ti.Vector([0., 0., 0.])
+            w = ti.Vector([0., 0., 0.])
+            for i in range(idx_first_ellips_body,idx_last_ellips_body):
+                mass = self.ellips_field.get_mass(i)
+                x_cm += self.ellips_field.get_x(i)*mass
+                v_cm += self.ellips_field.get_velocity(i)*mass
+ 
+                sum_mass += mass
+
+            x_cm/=sum_mass
+            v_cm/=sum_mass
+
+            for i in range(idx_first_ellips_body,idx_last_ellips_body):
+                mass = self.ellips_field.get_mass(i)
+                r_i = self.ellips_field.get_x(i) - x_cm
+
+                L += r_i.cross(self.ellips_field.get_velocity(i)*mass)
+
+                r_i_tilde = utils.skew(r_i)
+                I += mass*r_i_tilde@(r_i_tilde.transpose())
+
+            w = (I.inverse())@L
+
+            for i in range(idx_first_ellips_body,idx_last_ellips_body):
+                v = self.ellips_field.get_velocity(i)
+
+                r_i = self.ellips_field.get_x(i) - x_cm
+                dv_i = v_cm + w.cross(r_i) - v
+                #print(v,r_i,x_cm,v_cm,w.cross(r_i),dv_i)
+                v += stiffness*dv_i
+                self.ellips_field.set_velocity(v, i)
+
 
     @ti.func
     def prologue_positions(self):
