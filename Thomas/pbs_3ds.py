@@ -76,7 +76,7 @@ class Simulation(object):
         self.ground_contacts = ti.Vector.field(2, dtype=ti.f32, shape=self.nb_of_ellipsoids)
 
         self.M_particles = ti.field(dtype=ti.i32, shape = ())
-        self.particle_contacts = ti.Vector.field(2, dtype=ti.f32, shape=self.nb_of_pairs)
+        self.particle_contacts = ti.Vector.field(3, dtype=ti.f32, shape=self.nb_of_pairs) #modified to get the pairs i,j of particle colliding
         self.direction_contacts = ti.Vector.field(3, dtype=ti.f32, shape=self.nb_of_pairs)
 
         self.init()
@@ -128,7 +128,7 @@ class Simulation(object):
         #Here stiffness defined for a one loop solver (cf page 5 position based dynamics)
 
         self.prologue_velocities()
-        self.damp_velocities(1.)
+        self.damp_velocities(0.1)
         self.prologue_positions()
         #Seems there is not need to have a prologue for angular velocties because there is not ext. torque
         self.prologue_rotations()
@@ -139,6 +139,8 @@ class Simulation(object):
         self.solve_collisions_ground()
         self.project_distance_constr(1.)
         self.epilogue()
+        self.friction_ground(0.5,0.5)
+        self.friction_particles(0.5,0.5)
 
         self.ellips_field.update_new_positions()  # IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
 
@@ -350,6 +352,7 @@ class Simulation(object):
                         # The distance between the particles is smaller than the sum of the radii
                         self.particle_contacts[k][0] = j
                         self.particle_contacts[k][1] = distance
+                        self.particle_contacts[k][2] = i
                         self.direction_contacts[k] = n
                         k += 1
         self.M_particles[None] = k
@@ -372,13 +375,26 @@ class Simulation(object):
     @ti.func
     def solve_collisions_particles(self):
         for i in range(self.M_particles[None]) :    
-            idx = int(self.particle_contacts[i][0])
+            # idx = int(self.particle_contacts[i][0])
+            # d = self.particle_contacts[i][1]
+            # n = self.direction_contacts[i]
+            # p = self.ellips_field.get_p(idx)
+            # p = p + d * n
+            # self.ellips_field.set_p(p, idx)
+
+            #maybe better to move both particles by d/2 ?
+
+            idxj = int(self.particle_contacts[i][0])
+            idxi = int(self.particle_contacts[i][2])
             d = self.particle_contacts[i][1]
             n = self.direction_contacts[i]
-            p = self.ellips_field.get_p(idx)
-            p = p + d * n
-            self.ellips_field.set_p(p, idx)
-            pass
+            pi = self.ellips_field.get_p(idxi)
+            pj = self.ellips_field.get_p(idxj)
+            pi = pi - (d/2) * n
+            pj = pj + (d/2) * n
+            self.ellips_field.set_p(pi, idxi)
+            self.ellips_field.set_p(pj, idxj)
+            
 
     @ti.func
     def project_distance_constr(self, stiffness):
@@ -427,6 +443,61 @@ class Simulation(object):
 
             self.ellips_field.set_rotation(new_q, i)
             self.ellips_field.set_angular_velocity(w, i)
+
+    @ti.func
+    def friction_ground(self,slin,srot):
+
+        # #colission with solid object (here ground)
+        for i in range(self.M_ground[None]):
+            idx = int(self.ground_contacts[i][0])
+
+            v = self.ellips_field.get_velocity(idx)
+            n = ti.Vector([0., 1., 0.])
+            v_solid = ti.Vector([0., 0., 0.]) #ground
+            v_diff_n_orthog = v_solid - v - (v_solid-v).dot(n)*n #perpendicular to n
+            v += v_diff_n_orthog*slin 
+
+            r = self.compute_radius_T(idx,n)*n
+
+            w = self.ellips_field.get_angular_velocity(idx)
+            w += r.cross(v_solid-v-w.cross(r))*srot/r.norm()**2 
+
+            self.ellips_field.set_velocity(v,idx)
+            self.ellips_field.set_angular_velocity(w, idx)
+
+    @ti.func
+    def friction_particles(self,slin,srot):
+        #collision with particles
+
+        for idxpairs in range(self.M_particles[None]) :    
+            j = int(self.particle_contacts[idxpairs][0])
+            i = int(self.particle_contacts[idxpairs][2])
+
+            n = self.direction_contacts[idxpairs]
+            radius1 = self.compute_radius_T(i, n)*n
+            radius2 = -self.compute_radius_T(j, n)*n
+
+            v1 = self.ellips_field.get_velocity(i)
+            v2 = self.ellips_field.get_velocity(j)
+
+            v1_diff_n_orthog = (v1+v2)/2 - v1 - ((v1+v2)/2 - v1).dot(n)*n #perpendicular to n
+            v2_diff_n_orthog = (v1+v2)/2 - v2 - ((v1+v2)/2 - v2).dot(n)*n #perpendicular to n
+            
+            v1 += v1_diff_n_orthog*slin
+            v2 += v2_diff_n_orthog*slin
+
+            w1 = self.ellips_field.get_angular_velocity(i)
+            w2 = self.ellips_field.get_angular_velocity(j)
+
+            v_avg = (v1 + w1.cross(radius1) + v2 + w2.cross(radius2))/2
+            w1 += radius1.cross(v_avg-v1-w1.cross(radius1))*srot/radius1.norm()**2
+            w2 += radius2.cross(v_avg-v2-w2.cross(radius2))*srot/radius2.norm()**2 
+
+            self.ellips_field.set_velocity(v1,i)
+            self.ellips_field.set_angular_velocity(w1, i)
+
+            self.ellips_field.set_velocity(v2,j)
+            self.ellips_field.set_angular_velocity(w2, j)
 
 
 def main():
