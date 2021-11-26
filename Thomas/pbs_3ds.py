@@ -48,7 +48,7 @@ class Simulation(object):
     bodies = np.array([0, 0, 0, 0, 1, 1, 1, 1])
     ini_velocities = np.zeros(ini_centers.shape)
     ini_angular_velocities = np.zeros(ini_centers.shape)
-    #ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
+    ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
     ini_mass = np.array([1., 1., 1., 10.,1., 10., 1., 1.])
     gravity = np.array([0., -9.8, 0.])
 
