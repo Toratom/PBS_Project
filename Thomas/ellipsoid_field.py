@@ -51,8 +51,9 @@ class EllipsoidField(object):
             self.shape_ranges.append(list(range(dim)))
 
         #create the lines
-        self.lines.points = o3d.utility.Vector3dVector(self.center_array)
-        self.lines.lines = o3d.utility.Vector2iVector(self.connections_np)
+        if (self.nb_of_edges > 0 and self.connections_np.shape[1] == 2) :
+            self.lines.points = o3d.utility.Vector3dVector(self.center_array)
+            self.lines.lines = o3d.utility.Vector2iVector(self.connections_np)
 
         # create the meshes
         n_vertices = np.ndarray(shape = self.shape, dtype=int)
@@ -110,10 +111,11 @@ class EllipsoidField(object):
 
         #init adjacency list, create a list then a field
         adjacency_list = [[] for _ in range(self.nb_of_particules)]
-        for e in self.connections_np :
-            a, b = e
-            adjacency_list[a].append(b)
-            adjacency_list[b].append(a)
+        if (self.nb_of_edges > 0 and self.connections_np.shape[1] == 2) :
+            for e in self.connections_np :
+                a, b = e
+                adjacency_list[a].append(b)
+                adjacency_list[b].append(a)
 
         max_p_neighbors = 0
         for i in range(self.nb_of_particules) :
@@ -123,6 +125,7 @@ class EllipsoidField(object):
             adjacency_list[i] = [len((p_neighbors))] + p_neighbors
 
         adjacency_list_np = np.zeros((self.nb_of_particules, max_p_neighbors + 1), dtype = int) #+1 as add the len at begining
+        self.max_p_neighbors = max_p_neighbors #save max_p_neighbors needed for the fonction get_adjacency
         for i in range(self.nb_of_particules) :
             p_neighbors = adjacency_list[i]
             for j in range(len(p_neighbors)) :
@@ -302,21 +305,36 @@ class EllipsoidField(object):
         '''
         return self.bodies_indexes[idx]
     
+    # @ti.func #DOES NOT WORK !!
+    # def get_adjacency(self, idx) :
+    #     '''
+    #     Give a 1D scalar field F, such that 
+    #         - Its first value F[0] is the number of neighbors of particule idx
+    #         - The following value are the index of its neighbors
+    #     adj = get_adjacency(idx)
+    #     for i in range(1, adj[0] + 1) :
+    #         print(adj[i])
+    #     '''
+    #     adj = ti.Vector(self.max_p_neighbors + 1, dt = ti.i32)
+    #     for i in range(self.max_p_neighbors + 1) :
+    #         adj[i] = self.adjacency[idx, i]
+    #     return adj
+
     @ti.func
-    def get_adjacency(self, idx) :
+    def get_neighbor(self, idx, i_neighbor) :
         '''
-        Give a 1D scalar field F, such that 
-            - Its first value F[0] is the number of neighbors of particule idx
-            - The following value are the index of its neighbors
-        adj = get_adjacency(idx)
-        for i in range(1, adj[0] + 1) :
-            print(adj[i])
+        i_neighbor must be such that 0 <= i_neighbor < get_nb_of_neighbors(idx)
+        This function can be called only if get_nb_of_neighbors(idx) > 0
         '''
-        return self.adjacency[idx]
+        return self.adjacency[idx, 1 + i_neighbor]
     
     @ti.func
     def get_nb_of_neighbors(self, idx) :
-        return self.adjacency[idx][0]
+        return self.adjacency[idx, 0]
+
+    @ti.func
+    def get_rest_x(self, idx = ti.Vector([])):
+        return self.init_x[idx]
 
     @ti.func
     def get_x(self, idx = ti.Vector([])):

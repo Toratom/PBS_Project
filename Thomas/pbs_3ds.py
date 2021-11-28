@@ -28,7 +28,10 @@ class Simulation(object):
     # connections = np.array([[0, 1], [1, 3], [3, 2], [2, 0]])
     # bodies = np.array([0, 0, 0, 0])
     # ini_velocities = np.zeros(ini_centers.shape)
+    # ini_angular_velocities = np.zeros(ini_centers.shape)
+    # # ini_angular_velocities[3] = np.array([0., 0., 50.])
     # ini_mass = np.array([1., 1., 1., 10.])
+    # gravity = np.array([0., -9.8, 0.])
 
     nb_of_ellipsoids = 8
     nb_of_pairs = 12#(nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
@@ -48,9 +51,28 @@ class Simulation(object):
     bodies = np.array([0, 0, 0, 0, 1, 1, 1, 1])
     ini_velocities = np.zeros(ini_centers.shape)
     ini_angular_velocities = np.zeros(ini_centers.shape)
-    ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
+    # ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
     ini_mass = np.array([1., 1., 1., 10.,1., 10., 1., 1.])
     gravity = np.array([0., -9.8, 0.])
+
+    # nb_of_ellipsoids = 1
+    # nb_of_pairs = 1 #(nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
+    # radii_array = np.array([[0.5, 0.1, 0.5]])
+    # ini_centers = np.array([[0., 0., 0.]]) + np.array([0., 5., 0.])
+    # theta = np.radians(0.)
+    # u = - np.array([0., 0., 1.])
+    # u = u / np.linalg.norm(u)
+    # q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+    # #q = np.array([0., 0., 0., 1.])
+    # q = q / np.linalg.norm(q)
+    # ini_rotation = np.array([q]) #[x, y, z, w]
+    # connections = np.array([[]])
+    # bodies = np.array([0])
+    # ini_velocities = np.zeros(ini_centers.shape)
+    # ini_angular_velocities = np.zeros(ini_centers.shape)
+    # ini_angular_velocities[0] = np.array([10., 0., 0.]) # For testing
+    # ini_mass = np.array([1.])
+    # gravity = np.array([0., -9.8, 0.])
 
     def __init__(self, res=25):
         # create objects in the scene
@@ -128,19 +150,19 @@ class Simulation(object):
         #Here stiffness defined for a one loop solver (cf page 5 position based dynamics)
 
         self.prologue_velocities()
-        self.damp_velocities(0.1)
+        self.damp_velocities(0.1) #Needs to be comment if there is only one ellipsoid...
         self.prologue_positions()
         #Seems there is not need to have a prologue for angular velocties because there is not ext. torque
         self.prologue_rotations()
         self.gen_collision_ground()
-        self.generate_collisions_particle_T()
-        #self.generate_collisions_particle()
+        self.generate_collisions_particle()
         self.solve_collisions_particles()
         self.solve_collisions_ground()
-        self.project_distance_constr(1.)
+        # self.project_distance_constr(1.)
+        self.project_shape_matching_constr(0.35)
         self.epilogue()
-        self.friction_ground(0.5,0.5)
-        self.friction_particles(0.5,0.5)
+        self.friction_ground(0.5, 0.5)
+        self.friction_particles(0.5, 0.5)
 
         self.ellips_field.update_new_positions()  # IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
 
@@ -175,11 +197,11 @@ class Simulation(object):
 
             x_cm = ti.Vector([0., 0., 0.])
             v_cm = ti.Vector([0., 0., 0.])
-            sum_mass = 0
+            sum_mass = 0.
             I = ti.Matrix([[0., 0., 0.], [0., 0., 0.], [0., 0., 0.]])
             L = ti.Vector([0., 0., 0.])
             w = ti.Vector([0., 0., 0.])
-            for i in range(idx_first_ellips_body,idx_last_ellips_body):
+            for i in range(idx_first_ellips_body, idx_last_ellips_body):
                 mass = self.ellips_field.get_mass(i)
                 x_cm += self.ellips_field.get_x(i)*mass
                 v_cm += self.ellips_field.get_velocity(i)*mass
@@ -189,7 +211,7 @@ class Simulation(object):
             x_cm/=sum_mass
             v_cm/=sum_mass
 
-            for i in range(idx_first_ellips_body,idx_last_ellips_body):
+            for i in range(idx_first_ellips_body, idx_last_ellips_body):
                 mass = self.ellips_field.get_mass(i)
                 r_i = self.ellips_field.get_x(i) - x_cm
 
@@ -200,7 +222,7 @@ class Simulation(object):
 
             w = (I.inverse())@L
 
-            for i in range(idx_first_ellips_body,idx_last_ellips_body):
+            for i in range(idx_first_ellips_body, idx_last_ellips_body):
                 v = self.ellips_field.get_velocity(i)
 
                 r_i = self.ellips_field.get_x(i) - x_cm
@@ -208,7 +230,6 @@ class Simulation(object):
                 #print(v,r_i,x_cm,v_cm,w.cross(r_i),dv_i)
                 v += stiffness*dv_i
                 self.ellips_field.set_velocity(v, i)
-
 
     @ti.func
     def prologue_positions(self):
@@ -249,9 +270,9 @@ class Simulation(object):
     @ti.func
     def possible_ground_coll(self, idx: ti.i32):
         radii = self.ellips_field.get_radii(idx)
-        a = radii.x #radii[0] #? radii[0] corresponds to a : raddius in X_elli
-        b = radii.y #radii[1] #? radii[1] corresponds to b : raddius in Y_elli
-        c = radii.z #radii[2] #? radii[2] corresponds to c : raddius in Z_elli
+        a = radii.x #radii[0] corresponds to a : raddius in X_elli
+        b = radii.y #radii[1] corresponds to b : raddius in Y_elli
+        c = radii.z #radii[2] corresponds to c : raddius in Z_elli
         distance_ground = self.ellips_field.get_p(idx)[1]
         return_value = None #Maybe should be initialized differently it is a float
         if distance_ground < max(a, b, c):  # approximation of particle with a sphere
@@ -286,53 +307,6 @@ class Simulation(object):
             for j in range(i + 1, self.nb_of_ellipsoids):
                 radii1 = self.ellips_field.get_radii(i)
                 max1 = max(radii1[0], radii1[1], radii1[2])
-                pos1 = self.ellips_field.get_x(i) #x or p ?
-
-                radii2 = self.ellips_field.get_radii(j)
-                max2 = max(radii2[0], radii2[1], radii2[2])
-                pos2 = self.ellips_field.get_x(j) #x or p ?
-
-                distance_vector = pos1 - pos2
-                n = distance_vector.normalized()
-                distance = distance_vector.norm()
-
-                if distance < (max1 + max2):  # selection of candidates for collisions
-                    # computing ellipsoids radius in direction n
-                    radius1 = self.compute_radius(i, n)
-                    radius2 = self.compute_radius(j, n)
-                    distance = radius1 + radius2 - distance
-                    if distance > 0:  # detected an approximate collisions.
-                        # The distance between the particles is smaller than the sum of the radii
-                        self.particle_contacts[k][0] = i
-                        self.particle_contacts[k][1] = distance
-                        self.direction_contacts[k] = n
-                        k += 1
-        self.M_particles[None] = k
-
-    @ti.func
-    def compute_radius(self, idx: ti.i32, n):
-        radii = self.ellips_field.get_radii(idx)
-        first_radius = radii[0]
-        third_radius = radii[1]
-        second_radius = radii[2]
-
-        R = self.ellips_field.get_rotation_matrix(idx)
-        elip_matrix = ti.Matrix([[first_radius ** 2, 0, 0], [0, second_radius ** 2, 0], [0, 0, third_radius ** 2]]) #R is in the same order as radii x,y,z? Yes cf ground collision
-        inv_A = R @ elip_matrix @ R.transpose()
-
-        x_loc = (1 / (ti.sqrt(n.transpose() @ inv_A @ n))[0]) * (inv_A @ n)
-        radius = (x_loc).norm()
-        return radius
-    
-    #A Second Version :
-
-    @ti.func
-    def generate_collisions_particle_T(self):
-        k = 0
-        for i in range(self.nb_of_ellipsoids):  # approximate collisions using spheres
-            for j in range(i + 1, self.nb_of_ellipsoids):
-                radii1 = self.ellips_field.get_radii(i)
-                max1 = max(radii1[0], radii1[1], radii1[2])
                 pos1 = self.ellips_field.get_p(i)
 
                 radii2 = self.ellips_field.get_radii(j)
@@ -345,8 +319,8 @@ class Simulation(object):
 
                 if distance < (max1 + max2):  # selection of candidates for collisions
                     # computing ellipsoids x_1 and x_2 the 
-                    radius1 = self.compute_radius_T(i, n)
-                    radius2 = self.compute_radius_T(j, n)
+                    radius1 = self.compute_radius(i, n)
+                    radius2 = self.compute_radius(j, n)
                     distance = radius1 + radius2 - distance
                     if distance > 0:  # detected an approximate collisions.
                         # The distance between the particles is smaller than the sum of the radii
@@ -358,7 +332,7 @@ class Simulation(object):
         self.M_particles[None] = k
 
     @ti.func
-    def compute_radius_T(self, idx: ti.i32, n):
+    def compute_radius(self, idx: ti.i32, n):
         radii = self.ellips_field.get_radii(idx)
         a = radii.x
         b = radii.y
@@ -422,6 +396,69 @@ class Simulation(object):
 
             self.ellips_field.set_p(p1, p1_idx)
             self.ellips_field.set_p(p2, p2_idx)
+    
+    @ti.func
+    def project_shape_matching_constr(self, stiffness) :
+        '''
+        Stiffness between 0. and 1., 1. gives rigid bodies, close to 0. gives more springy, soft bodies
+        '''
+        for idx in range(self.nb_of_ellipsoids):
+            x_0 = self.ellips_field.get_rest_x(idx)
+            p = self.ellips_field.get_p(idx)
+            m = self.ellips_field.get_mass(idx)
+            radii = self.ellips_field.get_radii(idx)
+            new_R = self.ellips_field.get_predicted_rotation_matrix(idx)
+
+            nb_of_neighbors = self.ellips_field.get_nb_of_neighbors(idx)
+            
+            #Compute A
+            #Init with the particule itself
+            A_elli = 0.2 * m * (ti.Matrix([[radii.x**2., 0., 0.], [0., radii.y**2, 0.], [0., 0., radii.z**2]]) @ new_R)
+            A = A_elli + m * (p @ x_0.transpose())
+            new_c = m * p
+            c_0 = m * x_0
+            M = m
+            if (nb_of_neighbors > 0) :
+                for i in range(nb_of_neighbors) :
+                    neighbor_idx = self.ellips_field.get_neighbor(idx, i)
+                    x_0 = self.ellips_field.get_rest_x(neighbor_idx)
+                    p = self.ellips_field.get_p(neighbor_idx)
+                    m = self.ellips_field.get_mass(neighbor_idx)
+                    radii = self.ellips_field.get_radii(neighbor_idx)
+                    new_R = self.ellips_field.get_predicted_rotation_matrix(neighbor_idx)
+
+                    A_elli = 0.2 * m * (ti.Matrix([[radii.x**2., 0., 0.], [0., radii.y**2, 0.], [0., 0., radii.z**2]]) @ new_R)
+                    A += A_elli + m * (p @ x_0.transpose())
+                    new_c += m * p
+                    c_0 += m * x_0
+                    M += m
+            
+            new_c /= M
+            c_0 /= M
+            A -= M * (new_c @ c_0.transpose())
+
+            #Polar Decomposition of A
+            R, _ = ti.polar_decompose(A, ti.f32) #ti.f32 or ti.f64 ?
+
+            #Update position by moving each particule toward its g_i, begin with idx
+            x_0 = self.ellips_field.get_rest_x(idx)
+            p = self.ellips_field.get_p(idx)
+            g = R @ (x_0 - c_0) + new_c
+
+            p += stiffness * (g - p) #Need to check the math
+            self.ellips_field.set_p(p, idx)
+            if (nb_of_neighbors > 0) :
+                for i in range(nb_of_neighbors) :
+                    neighbor_idx = self.ellips_field.get_neighbor(idx, i)
+                    x_0 = self.ellips_field.get_rest_x(neighbor_idx)
+                    p = self.ellips_field.get_p(neighbor_idx)
+                    g = R @ (x_0 - c_0) + new_c
+
+                    p += stiffness * (g - p)
+                    self.ellips_field.set_p(p, neighbor_idx)
+
+            #Update Orientation of idx
+            self.ellips_field.set_predicted_rotation_matrix(R, idx)
 
     # Note: inside body class, I could add additional constraints (local constraints) to
     # impose certain properties, like a fixed position in space. To do so, I should add a
@@ -437,8 +474,13 @@ class Simulation(object):
             self.ellips_field.set_x(p, i)
 
             q_inv = utils.quaternion_inverse(self.ellips_field.get_rotation(i))
-            new_q = self.ellips_field.get_predicted_rotation(i)
+            new_q = self.ellips_field.get_predicted_rotation(i).normalized()
             qq = utils.quaternion_multiply(new_q, q_inv)
+            #There is an ambiguity : two valid rotations to go from q to new_q, qq (theta / u) et -qq (2PI - theta / -u)
+            #Choose the shorter one i.e. smallest theta, besides qq.w = cos(theta / 2) so shortest has qq.w > 0
+            #REALLY IMPORTANT, ortherwise lot of instabillity if new_q ~= -q can lead to huge angular velocity...
+            if (qq.w < 0.) :
+                qq *= -1.
             w = utils.quaternion_to_angle(qq) / self.dt * utils.quaternion_to_axis(qq)
 
             self.ellips_field.set_rotation(new_q, i)
@@ -457,7 +499,7 @@ class Simulation(object):
             v_diff_n_orthog = v_solid - v - (v_solid-v).dot(n)*n #perpendicular to n
             v += v_diff_n_orthog*slin 
 
-            r = self.compute_radius_T(idx,n)*n
+            r = self.compute_radius(idx,n)*n
 
             w = self.ellips_field.get_angular_velocity(idx)
             w += r.cross(v_solid-v-w.cross(r))*srot/r.norm()**2 
@@ -474,8 +516,8 @@ class Simulation(object):
             i = int(self.particle_contacts[idxpairs][2])
 
             n = self.direction_contacts[idxpairs]
-            radius1 = self.compute_radius_T(i, n)*n
-            radius2 = -self.compute_radius_T(j, n)*n
+            radius1 = self.compute_radius(i, n)*n
+            radius2 = -self.compute_radius(j, n)*n
 
             v1 = self.ellips_field.get_velocity(i)
             v2 = self.ellips_field.get_velocity(j)
@@ -498,6 +540,52 @@ class Simulation(object):
 
             self.ellips_field.set_velocity(v2,j)
             self.ellips_field.set_angular_velocity(w2, j)
+    
+
+    #@ti.func
+    # def generate_collisions_particle_D(self):
+    #     k = 0
+    #     for i in range(self.nb_of_ellipsoids):  # approximate collisions using spheres
+    #         for j in range(i + 1, self.nb_of_ellipsoids):
+    #             radii1 = self.ellips_field.get_radii(i)
+    #             max1 = max(radii1[0], radii1[1], radii1[2])
+    #             pos1 = self.ellips_field.get_x(i) #x or p ?
+
+    #             radii2 = self.ellips_field.get_radii(j)
+    #             max2 = max(radii2[0], radii2[1], radii2[2])
+    #             pos2 = self.ellips_field.get_x(j) #x or p ?
+
+    #             distance_vector = pos1 - pos2
+    #             n = distance_vector.normalized()
+    #             distance = distance_vector.norm()
+
+    #             if distance < (max1 + max2):  # selection of candidates for collisions
+    #                 # computing ellipsoids radius in direction n
+    #                 radius1 = self.compute_radius_D(i, n)
+    #                 radius2 = self.compute_radius_D(j, n)
+    #                 distance = radius1 + radius2 - distance
+    #                 if distance > 0:  # detected an approximate collisions.
+    #                     # The distance between the particles is smaller than the sum of the radii
+    #                     self.particle_contacts[k][0] = i
+    #                     self.particle_contacts[k][1] = distance
+    #                     self.direction_contacts[k] = n
+    #                     k += 1
+    #     self.M_particles[None] = k
+
+    # @ti.func
+    # def compute_radius_D(self, idx: ti.i32, n):
+    #     radii = self.ellips_field.get_radii(idx)
+    #     first_radius = radii[0]
+    #     third_radius = radii[1]
+    #     second_radius = radii[2]
+
+    #     R = self.ellips_field.get_rotation_matrix(idx)
+    #     elip_matrix = ti.Matrix([[first_radius ** 2, 0, 0], [0, second_radius ** 2, 0], [0, 0, third_radius ** 2]]) #R is in the same order as radii x,y,z? Yes cf ground collision
+    #     inv_A = R @ elip_matrix @ R.transpose()
+
+    #     x_loc = (1 / (ti.sqrt(n.transpose() @ inv_A @ n))[0]) * (inv_A @ n)
+    #     radius = (x_loc).norm()
+    #     return radius
 
 
 def main():

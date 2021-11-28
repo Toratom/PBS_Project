@@ -2,19 +2,171 @@ import open3d as o3d
 import numpy as np
 import random
 
+def quaternion_multiply(p, q):
+    ret = np.array(
+        [
+            p[0] * q[3] + p[3] * q[0] + p[1] * q[2] - p[2] * q[1],
+            p[1] * q[3] + p[3] * q[1] + p[2] * q[0] - p[0] * q[2],
+            p[2] * q[3] + p[3] * q[2] + p[0] * q[1] - p[1] * q[0],
+            p[3] * q[3] - p[0] * q[0] - p[1] * q[1] - p[2] * q[2],
+        ]
+    )
+    return ret
 
-#q = [x, y, z, w] = w + ix + jy + kz
-theta = np.radians(300.)
+def quaternion_inverse(q):
+    qInv = np.array([-q[0], -q[1], -q[2], q[3]]) / np.linalg.norm(q)
+    return qInv
+
+def quaternion_to_matrix(q):
+    # First row of the rotation matrix
+    r00 = 2 * (q[3] * q[3] + q[0] * q[0]) - 1
+    r01 = 2 * (q[0] * q[1] - q[3] * q[2])
+    r02 = 2 * (q[0] * q[2] + q[3] * q[1])
+
+    # Second row of the rotation matrix
+    r10 = 2 * (q[0] * q[1] + q[3] * q[2])
+    r11 = 2 * (q[3] * q[3] + q[1] * q[1]) - 1
+    r12 = 2 * (q[1] * q[2] - q[3] * q[0])
+
+    # Third row of the rotation matrix
+    r20 = 2 * (q[0] * q[2] - q[3] * q[1])
+    r21 = 2 * (q[1] * q[2] + q[3] * q[0])
+    r22 = 2 * (q[3] * q[3] + q[2] * q[2]) - 1
+
+    # 3x3 rotation matrix
+    rot_matrix = np.array([[r00, r01, r02], [r10, r11, r12], [r20, r21, r22]])
+    return rot_matrix
+
+def matrix_to_quaternion(M):
+    qw = 0.5 * np.sqrt(1 + M[0, 0] + M[1, 1] + M[2, 2])
+    qx = (M[2, 1] - M[1, 2]) / (4 * qw)
+    qy = (M[0, 2] - M[2, 0]) / (4 * qw)
+    qz = (M[1, 0] - M[0, 1]) / (4 * qw)
+
+    q = np.array([qx, qy, qz, qw])
+    return q
+
+def quaternion_to_matrix2(q) :
+    sqw = q[3] * q[3]
+    sqx = q[0] * q[0]
+    sqy = q[1] * q[1]
+    sqz = q[2] * q[2]
+
+    # invs (inverse square length) is only required if quaternion is not already normalised
+    invs = 1 / (sqx + sqy + sqz + sqw)
+    m00 = ( sqx - sqy - sqz + sqw) * invs # since sqw + sqx + sqy + sqz =1/invs*invs
+    m11 = (-sqx + sqy - sqz + sqw) * invs
+    m22 = (-sqx - sqy + sqz + sqw) * invs
+    
+    tmp1 = q[0] * q[1]
+    tmp2 = q[2] * q[3]
+    m10 = 2.0 * (tmp1 + tmp2) * invs
+    m01 = 2.0 * (tmp1 - tmp2) * invs
+    
+    tmp1 = q[0] * q[2]
+    tmp2 = q[1] * q[3]
+    m20 = 2.0 * (tmp1 - tmp2) * invs
+    m02 = 2.0 * (tmp1 + tmp2) * invs
+    tmp1 = q[1] * q[2]
+    tmp2 = q[0] * q[3]
+    m21 = 2.0 * (tmp1 + tmp2) * invs
+    m12 = 2.0 * (tmp1 - tmp2) * invs
+
+    return np.array([[m00, m01, m02], [m10, m11, m12], [m20, m21, m22]])
+
+
+def matrix_to_quaternion2(M) :
+    tr = M[0, 0] + M[1, 1] + M[2, 2]
+
+    if (tr > 0) : 
+        S = np.sqrt(tr+1.0) * 2 # S=4*qw 
+        qw = 0.25 * S
+        qx = (M[2, 1] - M[1, 2]) / S
+        qy = (M[0, 2] - M[2, 0]) / S
+        qz = (M[1, 0] - M[0, 1]) / S 
+    elif ((M[0, 0] > M[1, 1])&(M[0, 0] > M[2, 2])) :
+        S = np.sqrt(1.0 + M[0, 0] - M[1, 1] - M[2, 2]) * 2 # S=4*qx 
+        qw = (M[2, 1] - M[1, 2]) / S
+        qx = 0.25 * S
+        qy = (M[0, 1] + M[1, 0]) / S
+        qz = (M[0, 2] + M[2, 0]) / S 
+    elif (M[1, 1] > M[2, 2]) :
+        S = np.sqrt(1.0 + M[1, 1] - M[0, 0] - M[2, 2]) * 2 # S=4*qy
+        qw = (M[0, 2] - M[2, 0]) / S
+        qx = (M[0, 1] + M[1, 0]) / S
+        qy = 0.25 * S
+        qz = (M[1, 2] + M[2, 1]) / S
+    else :
+        S = np.sqrt(1.0 + M[2, 2] - M[0, 0] - M[1, 1]) * 2 # S=4*qz
+        qw = (M[1, 0] - M[0, 1]) / S
+        qx = (M[0, 2] + M[2, 0]) / S
+        qy = (M[1, 2] + M[2, 1]) / S
+        qz = 0.25 * S
+
+    q = np.array([qx, qy, qz, qw])
+    return q
+
+theta = np.radians(190.)
 u = np.array([0.5, 1., 0.5])
 u = u / np.linalg.norm(u)
 q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+# print(quaternion_to_matrix2(q))
+# print(quaternion_to_matrix2(-q))
 
-theta_back = 2 * np.arccos(q[3])
+theta = 2 * np.arccos(q[3])
 s = np.sqrt(1 - q[3]**2)
-u_back = np.array([q[0] / s, q[1] / s, q[2] / s])
+u = np.array([q[0] / s, q[1] / s, q[2] / s])
+if theta > np.pi :
+    theta = 2 * np.pi - theta
+    u = -u
+print(theta)
+print(u)
+# theta2 = 2 * np.arccos(-q[3])
+# u2 = np.array([-q[0] / s, -q[1] / s, -q[2] / s])
+# print(theta, " VS ", theta2)
+# print(u, " VS ", u2)
 
-print(u, " VS ", u_back)
-print(theta, " VS ", theta_back)
+R = quaternion_to_matrix(q)
+# print("Det ", np.linalg.det(R))
+q_back = matrix_to_quaternion(R)
+# R_back = quaternion_to_matrix(q_back)
+# print("Det back ", np.linalg.det(R_back))
+# print(R, " VS ", R_back)
+print(q, " VS ", q_back)
+
+
+# theta_back = 2 * np.arccos(q_back[3])
+# s = np.sqrt(1 - q_back[3]**2)
+# u_back = np.array([q_back[0] / s, q_back[1] / s, q_back[2] / s])
+
+
+# id = quaternion_multiply(q, quaternion_inverse(q_back))
+
+# print(u, " VS ", u_back)
+# print(theta, " VS ", theta_back)
+# print(2*np.pi - theta)
+# print(id)
+
+
+
+
+# s = np.sqrt(q_back[0]**2 + q_back[1]**2 + q_back[2]**2)
+# theta_back = 2 * np.arctan2(s, q_back[3])
+# u_back = np.array([q_back[0] / s, q_back[1] / s, q_back[2] / s])
+
+
+#q = [x, y, z, w] = w + ix + jy + kz
+# theta = np.radians(189.)
+# u = np.array([0.5, 1., 0.5])
+# u = u / np.linalg.norm(u)
+# q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+
+# theta_back = 2 * np.arccos(q[3])
+# s = np.sqrt(1 - q[3]**2)
+# u_back = np.array([q[0] / s, q[1] / s, q[2] / s])
+
+# print(u, " VS ", u_back)
+# print(theta, " VS ", theta_back)
 
 
 # nb_of_particules = 5
@@ -34,7 +186,7 @@ print(theta, " VS ", theta_back)
 #         max_p_neighbors = len(p_neighbors)
 #     adjacency_list[i] = [len((p_neighbors))] + p_neighbors
 
-# adjacency_list_np = np.zeros((nb_of_particules, max_p_neighbors + 1), dtype = int) #+1 as added the len at begining
+# adjacency_list_np = np[2]eros((nb_of_particules, max_p_neighbors + 1), dtype = int) #+1 as added the len at begining
 # for i in range(nb_of_particules) :
 #     p_neighbors = adjacency_list[i]
 #     for j in range(len(p_neighbors)) :
