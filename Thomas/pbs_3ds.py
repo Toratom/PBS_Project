@@ -150,7 +150,7 @@ class Simulation(object):
          [0.5 + offset, 0. + height, 0.5],  # down 11
          [0. + offset, 0.5 + height, 0.5],  # right 12
          [1. + offset, 0.5 + height, 0.5]  # left 13
-         ]) + np.array([0., 2., 0.])
+         ]) + np.array([0., 1., 0.])
     ini_rotation = np.array([[0., 0., 0., 1.], # CUBE1
                              [0., 0., 0., 1.],
                              [0., 0., 0., 1.],
