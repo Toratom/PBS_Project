@@ -33,7 +33,11 @@ class Simulation(object):
     # ini_mass = np.array([1., 1., 1., 10.])
     # gravity = np.array([0., -9.8, 0.])
 
-    nb_of_ellipsoids = 8
+    # Initialization for DEBUGGING -----------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
+    '''nb_of_ellipsoids = 8
     nb_of_pairs = 12#(nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
     #radii_array = np.array([[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2]])
     radii_array = np.array([[0.5, 0.1, 0.5], [0.1, 0.5, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1],[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2]])
@@ -53,7 +57,10 @@ class Simulation(object):
     ini_angular_velocities = np.zeros(ini_centers.shape)
     # ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
     ini_mass = np.array([1., 1., 1., 10.,1., 10., 1., 1.])
-    gravity = np.array([0., -9.8, 0.])
+    gravity = np.array([0., -9.8, 0.])'''
+    # ----------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
 
     # nb_of_ellipsoids = 1
     # nb_of_pairs = 1 #(nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
@@ -73,6 +80,133 @@ class Simulation(object):
     # ini_angular_velocities[0] = np.array([10., 0., 0.]) # For testing
     # ini_mass = np.array([1.])
     # gravity = np.array([0., -9.8, 0.])
+
+    # Initialization for PRESENTATION --------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
+    nb_of_ellipsoids = 28
+    nb_of_pairs = 72  # (nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
+    # radii_array = np.array([[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2]])
+    offset = 0.5
+    height = 2
+    radii_array = np.array(
+        [[0.05, 0.05, 0.05],  # Cube1 vertexes
+         [0.05, 0.05, 0.05],
+         [0.05, 0.05, 0.05],
+         [0.05, 0.05, 0.05],
+         [0.05, 0.05, 0.05],
+         [0.05, 0.05, 0.05],
+         [0.05, 0.05, 0.05],
+         [0.05, 0.05, 0.05],
+         [0.5, 0.5, 0.1],  # front
+         [0.5, 0.5, 0.1],  # back
+         [0.5, 0.1, 0.5],  # up
+         [0.5, 0.1, 0.5],  # down
+         [0.1, 0.5, 0.5],  # right
+         [0.1, 0.5, 0.5],
+         [0.05, 0.05, 0.05],  # Cube2 vertexes
+         [0.05, 0.05, 0.05],
+         [0.05, 0.05, 0.05],
+         [0.05, 0.05, 0.05],
+         [0.05, 0.05, 0.05],
+         [0.05, 0.05, 0.05],
+         [0.05, 0.05, 0.05],
+         [0.05, 0.05, 0.05],
+         [0.5, 0.5, 0.1],  # front
+         [0.5, 0.5, 0.1],  # back
+         [0.5, 0.1, 0.5],  # up
+         [0.5, 0.1, 0.5],  # down
+         [0.1, 0.5, 0.5],  # right
+         [0.1, 0.5, 0.5]
+         ])  # left
+    # radii_array = np.array([[0.1, 0.5, 0.1], [0.1, 0.5, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]])
+    ini_centers = np.array(
+        [[0., 0., 0.],  #0 CUBE 1
+         [1., 0., 0.],  #1
+         [0., 1., 0.],  #2
+         [1., 1., 0.],  #3
+         [0., 0., 1.],  #4
+         [1., 0., 1.],  #5
+         [0., 1., 1.],  #6
+         [1., 1., 1.],  #7
+         [0.5, 0.5, 0.],  #front 8
+         [0.5, 0.5, 1.],  #back 9
+         [0.5, 1., 0.5],  #up 10
+         [0.5, 0., 0.5],  #down 11
+         [0., 0.5, 0.5],  #right 12
+         [1., 0.5, 0.5],  #left 13
+         [0. + offset, 0. + height, 0.],  # 0 CUBE 2
+         [1. + offset, 0. + height, 0.],  # 1
+         [0. + offset, 1. + height, 0.],  # 2
+         [1. + offset, 1. + height, 0.],  # 3
+         [0. + offset, 0. + height, 1.],  # 4
+         [1. + offset, 0. + height, 1.],  # 5
+         [0. + offset, 1. + height, 1.],  # 6
+         [1. + offset, 1. + height, 1.],  # 7
+         [0.5 + offset, 0.5 + height, 0.],  # front 8
+         [0.5 + offset, 0.5 + height, 1.],  # back 9
+         [0.5 + offset, 1. + height, 0.5],  # up 10
+         [0.5 + offset, 0. + height, 0.5],  # down 11
+         [0. + offset, 0.5 + height, 0.5],  # right 12
+         [1. + offset, 0.5 + height, 0.5]  # left 13
+         ]) + np.array([0., 2., 0.])
+    ini_rotation = np.array([[0., 0., 0., 1.], # CUBE1
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],  # CUBE2
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.],
+                             [0., 0., 0., 1.]
+                             ])
+    shift = 14
+    connections = np.array([[0, 1], [0, 2], [0, 4], [0, 8], [0, 11], [0, 13], # CUBE1
+                            [1, 3], [1, 5], [1, 8], [1, 11], [1, 12],
+                            [2, 6], [2, 3], [2, 8], [2, 10], [2, 13],
+                            [3, 7], [3, 8], [3, 10], [3, 12],
+                            [4, 6], [4, 5], [4, 13], [4, 11], [4, 9],
+                            [5, 7], [5, 11], [5, 12], [5, 9],
+                            [6, 7], [6, 10], [6, 13], [6, 9],
+                            [7, 10], [7, 12], [7, 9],
+                            [0 + shift, 1 + shift], [0 + shift, 2 + shift], [0 + shift, 4 + shift], [0 + shift, 8 + shift], [0 + shift, 11 + shift], [0 + shift, 13 + shift],  # CUBE2
+                            [1 + shift, 3 + shift], [1 + shift, 5 + shift], [1 + shift, 8 + shift], [1 + shift, 11 + shift], [1 + shift, 12 + shift],
+                            [2 + shift, 6 + shift], [2 + shift, 3 + shift], [2 + shift, 8 + shift], [2 + shift, 10 + shift], [2 + shift, 13 + shift],
+                            [3 + shift, 7 + shift], [3 + shift, 8 + shift], [3 + shift, 10 + shift], [3 + shift, 12 + shift],
+                            [4 + shift, 6 + shift], [4 + shift, 5 + shift], [4 + shift, 13 + shift], [4 + shift, 11 + shift], [4 + shift, 9 + shift],
+                            [5 + shift, 7 + shift], [5 + shift, 11 + shift], [5 + shift, 12 + shift], [5 + shift, 9 + shift],
+                            [6 + shift, 7 + shift], [6 + shift, 10 + shift], [6 + shift, 13 + shift], [6 + shift, 9 + shift],
+                            [7 + shift, 10 + shift], [7 + shift, 12 + shift], [7 + shift, 9 + shift]
+                            ])
+    bodies = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+    ini_velocities = np.zeros(ini_centers.shape)
+    ini_angular_velocities = np.zeros(ini_centers.shape)
+    # ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
+    ini_mass = np.array([10., 10., 10., 10., 10., 10., 10., 10., 40., 40., 40., 40., 40., 40., 10., 10., 10., 10., 10., 10., 10., 10., 40., 40., 40., 40., 40., 40.]) * 100
+    gravity = np.array([0., -9.8, 0.])
+    # ----------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
+    # ----------------------------------------------------------------------------------------------
 
     def __init__(self, res=25):
         # create objects in the scene
@@ -150,7 +284,7 @@ class Simulation(object):
         #Here stiffness defined for a one loop solver (cf page 5 position based dynamics)
 
         self.prologue_velocities()
-        self.damp_velocities(0.1) #Needs to be comment if there is only one ellipsoid...
+        self.damp_velocities(1) #0.1 (stiff), 1 (soft) #Needs to be comment if there is only one ellipsoid...
         self.prologue_positions()
         #Seems there is not need to have a prologue for angular velocties because there is not ext. torque
         self.prologue_rotations()
@@ -159,9 +293,9 @@ class Simulation(object):
         self.solve_collisions_particles()
         self.solve_collisions_ground()
         # self.project_distance_constr(1.)
-        self.project_shape_matching_constr(0.35)
+        self.project_shape_matching_constr(0.01) # 0.35 (stiff), 0.01 soft
         self.epilogue()
-        self.friction_ground(0.5, 0.5)
+        self.friction_ground(4, 4) # 0.5, 0.5 in 2D
         self.friction_particles(0.5, 0.5)
 
         self.ellips_field.update_new_positions()  # IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
@@ -189,7 +323,7 @@ class Simulation(object):
         Damp velocities body per body
         stiffness must be a float between 0 and 1
         '''
-        
+
         for index_body in range(len(self.bodies)):
             bodies_indexes = self.ellips_field.get_body_indexes(index_body)
             idx_last_ellips_body = bodies_indexes[1]
@@ -205,7 +339,7 @@ class Simulation(object):
                 mass = self.ellips_field.get_mass(i)
                 x_cm += self.ellips_field.get_x(i)*mass
                 v_cm += self.ellips_field.get_velocity(i)*mass
- 
+
                 sum_mass += mass
 
             x_cm/=sum_mass
@@ -261,7 +395,7 @@ class Simulation(object):
         for i in range(self.nb_of_ellipsoids):
             # Looking for collision candidates
             d = self.possible_ground_coll(i)
-            if d > 0. : 
+            if d > 0. :
                 self.ground_contacts[k][0] = i
                 self.ground_contacts[k][1] = d
                 k += 1
@@ -348,7 +482,7 @@ class Simulation(object):
 
     @ti.func
     def solve_collisions_particles(self):
-        for i in range(self.M_particles[None]) :    
+        for i in range(self.M_particles[None]) :
             # idx = int(self.particle_contacts[i][0])
             # d = self.particle_contacts[i][1]
             # n = self.direction_contacts[i]
@@ -368,7 +502,7 @@ class Simulation(object):
             pj = pj + (d/2) * n
             self.ellips_field.set_p(pi, idxi)
             self.ellips_field.set_p(pj, idxj)
-            
+
 
     @ti.func
     def project_distance_constr(self, stiffness):
@@ -396,7 +530,7 @@ class Simulation(object):
 
             self.ellips_field.set_p(p1, p1_idx)
             self.ellips_field.set_p(p2, p2_idx)
-    
+
     @ti.func
     def project_shape_matching_constr(self, stiffness) :
         '''
@@ -410,7 +544,7 @@ class Simulation(object):
             new_R = self.ellips_field.get_predicted_rotation_matrix(idx)
 
             nb_of_neighbors = self.ellips_field.get_nb_of_neighbors(idx)
-            
+
             #Compute A
             #Init with the particule itself
             A_elli = 0.2 * m * (ti.Matrix([[radii.x**2., 0., 0.], [0., radii.y**2, 0.], [0., 0., radii.z**2]]) @ new_R)
@@ -432,7 +566,7 @@ class Simulation(object):
                     new_c += m * p
                     c_0 += m * x_0
                     M += m
-            
+
             new_c /= M
             c_0 /= M
             A -= M * (new_c @ c_0.transpose())
@@ -497,12 +631,12 @@ class Simulation(object):
             n = ti.Vector([0., 1., 0.])
             v_solid = ti.Vector([0., 0., 0.]) #ground
             v_diff_n_orthog = v_solid - v - (v_solid-v).dot(n)*n #perpendicular to n
-            v += v_diff_n_orthog*slin 
+            v += v_diff_n_orthog*slin
 
             r = self.compute_radius(idx,n)*n
 
             w = self.ellips_field.get_angular_velocity(idx)
-            w += r.cross(v_solid-v-w.cross(r))*srot/r.norm()**2 
+            w += r.cross(v_solid-v-w.cross(r))*srot/r.norm()**2
 
             self.ellips_field.set_velocity(v,idx)
             self.ellips_field.set_angular_velocity(w, idx)
@@ -511,7 +645,7 @@ class Simulation(object):
     def friction_particles(self,slin,srot):
         #collision with particles
 
-        for idxpairs in range(self.M_particles[None]) :    
+        for idxpairs in range(self.M_particles[None]) :
             j = int(self.particle_contacts[idxpairs][0])
             i = int(self.particle_contacts[idxpairs][2])
 
@@ -524,7 +658,7 @@ class Simulation(object):
 
             v1_diff_n_orthog = (v1+v2)/2 - v1 - ((v1+v2)/2 - v1).dot(n)*n #perpendicular to n
             v2_diff_n_orthog = (v1+v2)/2 - v2 - ((v1+v2)/2 - v2).dot(n)*n #perpendicular to n
-            
+
             v1 += v1_diff_n_orthog*slin
             v2 += v2_diff_n_orthog*slin
 
@@ -533,14 +667,14 @@ class Simulation(object):
 
             v_avg = (v1 + w1.cross(radius1) + v2 + w2.cross(radius2))/2
             w1 += radius1.cross(v_avg-v1-w1.cross(radius1))*srot/radius1.norm()**2
-            w2 += radius2.cross(v_avg-v2-w2.cross(radius2))*srot/radius2.norm()**2 
+            w2 += radius2.cross(v_avg-v2-w2.cross(radius2))*srot/radius2.norm()**2
 
             self.ellips_field.set_velocity(v1,i)
             self.ellips_field.set_angular_velocity(w1, i)
 
             self.ellips_field.set_velocity(v2,j)
             self.ellips_field.set_angular_velocity(w2, j)
-    
+
 
     #@ti.func
     # def generate_collisions_particle_D(self):
