@@ -37,7 +37,7 @@ class Simulation(object):
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
-    '''nb_of_ellipsoids = 8
+    nb_of_ellipsoids = 8
     nb_of_pairs = 12#(nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
     #radii_array = np.array([[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2]])
     radii_array = np.array([[0.5, 0.1, 0.5], [0.1, 0.5, 0.1], [0.1, 0.1, 0.1], [0.1, 0.1, 0.1],[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2]])
@@ -57,7 +57,7 @@ class Simulation(object):
     ini_angular_velocities = np.zeros(ini_centers.shape)
     # ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
     ini_mass = np.array([1., 1., 1., 10.,1., 10., 1., 1.])
-    gravity = np.array([0., -9.8, 0.])'''
+    gravity = np.array([0., -9.8, 0.])
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
@@ -85,10 +85,10 @@ class Simulation(object):
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
-    nb_of_ellipsoids = 28
+    '''nb_of_ellipsoids = 28
     nb_of_pairs = 72  # (nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
     # radii_array = np.array([[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2]])
-    offset = 0.5
+    offset = -0.5
     height = 2
     radii_array = np.array(
         [[0.05, 0.05, 0.05],  # Cube1 vertexes
@@ -203,7 +203,7 @@ class Simulation(object):
     ini_angular_velocities = np.zeros(ini_centers.shape)
     # ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
     ini_mass = np.array([10., 10., 10., 10., 10., 10., 10., 10., 40., 40., 40., 40., 40., 40., 10., 10., 10., 10., 10., 10., 10., 10., 40., 40., 40., 40., 40., 40.]) * 100
-    gravity = np.array([0., -9.8, 0.])
+    gravity = np.array([0., -9.8, 0.])'''
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
@@ -284,7 +284,7 @@ class Simulation(object):
         #Here stiffness defined for a one loop solver (cf page 5 position based dynamics)
 
         self.prologue_velocities()
-        self.damp_velocities(1) #0.1 (stiff), 1 (soft) #Needs to be comment if there is only one ellipsoid...
+        self.damp_velocities(0.1) #0.1 (stiff), 1 (soft) #Needs to be comment if there is only one ellipsoid...
         self.prologue_positions()
         #Seems there is not need to have a prologue for angular velocties because there is not ext. torque
         self.prologue_rotations()
@@ -293,10 +293,10 @@ class Simulation(object):
         self.solve_collisions_particles()
         self.solve_collisions_ground()
         # self.project_distance_constr(1.)
-        self.project_shape_matching_constr(0.01) # 0.35 (stiff), 0.01 soft
+        self.project_shape_matching_constr(0.35) # 0.35 (stiff), 0.01 soft
         self.epilogue()
-        self.friction_ground(4, 4) # 0.5, 0.5 in 2D
-        self.friction_particles(0.5, 0.5)
+        self.friction_ground(0.5, 0.5) # 0.5, 0.5 in 2D; 4, 4 for cubes
+        self.friction_particles(0.5, 0.5) # 0.5, 0.5 in 2D and for cubes
 
         self.ellips_field.update_new_positions()  # IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
 
