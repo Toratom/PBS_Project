@@ -100,7 +100,7 @@ class Simulation(object):
     nb_of_ellipsoids = 28
     nb_of_pairs = 72  # (nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
     # radii_array = np.array([[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2]])
-    offset = 0.5
+    offset = -0.5
     height = 2
     radii_array = np.array(
         [[0.05, 0.05, 0.05],  # Cube1 vertexes
