@@ -106,33 +106,47 @@ def matrix_to_quaternion2(M) :
     q = np.array([qx, qy, qz, qw])
     return q
 
-theta = np.radians(190.)
-u = np.array([0.5, 1., 0.5])
-u = u / np.linalg.norm(u)
+theta = np.radians(90.)
+u = np.array([0., 0., -1])
+# u = u / np.linalg.norm(u)
 q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+R = quaternion_to_matrix(q)
+
+print(R)
+print("")
+print("")
+
+elli = np.array([[0.5, 0., 0.], [0., 0.05, 0.], [0., 0., 0.5]])
+
+print(R@elli@R.T)
+
+
+
+
+
 # print(quaternion_to_matrix2(q))
 # print(quaternion_to_matrix2(-q))
 
-theta = 2 * np.arccos(q[3])
-s = np.sqrt(1 - q[3]**2)
-u = np.array([q[0] / s, q[1] / s, q[2] / s])
-if theta > np.pi :
-    theta = 2 * np.pi - theta
-    u = -u
-print(theta)
-print(u)
+# theta = 2 * np.arccos(q[3])
+# s = np.sqrt(1 - q[3]**2)
+# u = np.array([q[0] / s, q[1] / s, q[2] / s])
+# if theta > np.pi :
+#     theta = 2 * np.pi - theta
+#     u = -u
+# print(theta)
+# print(u)
 # theta2 = 2 * np.arccos(-q[3])
 # u2 = np.array([-q[0] / s, -q[1] / s, -q[2] / s])
 # print(theta, " VS ", theta2)
 # print(u, " VS ", u2)
 
-R = quaternion_to_matrix(q)
+# R = quaternion_to_matrix(q)
 # print("Det ", np.linalg.det(R))
-q_back = matrix_to_quaternion(R)
+# q_back = matrix_to_quaternion(R)
 # R_back = quaternion_to_matrix(q_back)
 # print("Det back ", np.linalg.det(R_back))
 # print(R, " VS ", R_back)
-print(q, " VS ", q_back)
+# print(q, " VS ", q_back)
 
 
 # theta_back = 2 * np.arccos(q_back[3])

@@ -361,6 +361,10 @@ class EllipsoidField(object):
         return self.rot[idx]
     
     @ti.func
+    def get_rest_rotation_matrix(self, idx = ti.Vector([])):
+        return self.init_rot[idx]
+    
+    @ti.func
     def set_rotation(self, q, idx = ti.Vector([])):
         self.quat[idx] = q
         self.rot[idx] = utils.quaternion_to_matrix(q)
