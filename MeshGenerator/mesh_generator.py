@@ -1,3 +1,5 @@
+import pickle
+
 import open3d as o3d
 import numpy as np
 from scipy.spatial.distance import pdist
@@ -8,7 +10,11 @@ import itertools
 
 class MeshGenerator(object):
     def __init__(self, mesh_path, distance, num_ellips, num_connections):
-        self.graph = None
+        self.graph = {}
+        '''self.graph["centers"] = all_positions
+        self.graph["radii"] = all_radii
+        self.graph["rotations"] = all_rotations
+        self.graph["connections"] = all_connections'''
         self.pcd = None
         self.vis_particles = []
         self.vis_connections = o3d.geometry.LineSet()
@@ -90,7 +96,7 @@ class MeshGenerator(object):
 
                 e_radii = np.array([obb.extent[0] / 2, obb.extent[1] / 2, obb.extent[2] / 2])
 
-                if np.max(e_radii) > 0.15: # too small particle. Here, I am avoiding the inference of small spheres
+                if np.max(e_radii) > 0.15:  # too small particle. Here, I am avoiding the inference of small spheres
                     # Creation of ellipsoid
                     e_center = obb.center
                     all_positions.append((e_center))
@@ -108,7 +114,7 @@ class MeshGenerator(object):
                     center_index = np.where(np.all(centers == point, axis=1))
                     colored.append(center_index[0][0])
 
-            except RuntimeError as e: # faces may be coplanar. Need to retry
+            except RuntimeError as e:  # faces may be coplanar. Need to retry
                 continue
 
         for i in range(all_positions.__len__()):
@@ -125,24 +131,28 @@ class MeshGenerator(object):
         for point in points:
             # find the closer 4 neighbors and create connections
             dist, neighbors = support_tree.query(point.reshape(1, -1), k=self.num_connections + 1)  # +1 because one
-                                                                                        # neighbor is the point itself
+            # neighbor is the point itself
             point_index = np.where(np.all(points == point, axis=1))
             for i in neighbors[0]:
                 connection = [point_index[0][0], i]
-                if (point_index[0][0] != i) and ( not all_connections.__contains__(connection)):
+                if (point_index[0][0] != i) and (not all_connections.__contains__(connection)):
                     all_connections.append(connection)
 
         self.vis_connections.points = o3d.utility.Vector3dVector(points)
         self.vis_connections.lines = o3d.utility.Vector2iVector(all_connections)
 
-        self.visualize_graph()
+        self.graph["centers"] = np.array(all_positions)
+        self.graph["radii"] = np.array(all_radii)
+        self.graph["rotations"] = np.array(all_rotations)
+        self.graph["connections"] = np.array(all_connections)
+        # self.visualize_graph()
         return
 
     def find_overlapping(self, pos1, r1, nb_of_ellipsoids, radii, positions, separation=0):
         for j in range(nb_of_ellipsoids):
 
             radii2 = radii[j]
-            r2 = max(radii2[0], radii2[1], radii2[2]) # approximating particles with spheres
+            r2 = max(radii2[0], radii2[1], radii2[2])  # approximating particles with spheres
             pos2 = positions[j]
 
             distance_vector = pos2 - pos1
@@ -207,10 +217,18 @@ class MeshGenerator(object):
 
         return mesh
 
+    def export_particle_graph(self, name):
+        if self.graph.keys().__len__() == 0:
+            self.create_graph()
+        with open('../Meshes/' + name + '.pkl', 'wb') as out:
+            pickle.dump(self.graph, out, pickle.HIGHEST_PROTOCOL)
+
 
 def main():
-    generator = MeshGenerator("../Meshes/duck_pbs.glb", 0.35, 10000, 6)  # 150, 0.45 Candidate radius, Candidate particle centers
+    generator = MeshGenerator("../Meshes/duck_pbs.glb", 0.35, 10000,
+                              6)  # 150, 0.45 Candidate radius, Candidate particle centers
     generator.create_graph()
+    generator.export_particle_graph('duck')
 
 
 if __name__ == "__main__":
