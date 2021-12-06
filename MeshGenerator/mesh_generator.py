@@ -7,13 +7,14 @@ import itertools
 
 
 class MeshGenerator(object):
-    def __init__(self, mesh_path, distance, num_ellips):
+    def __init__(self, mesh_path, distance, num_ellips, num_connections):
         self.graph = None
         self.pcd = None
         self.vis_particles = []
-        self.vis_connections = []
+        self.vis_connections = o3d.geometry.LineSet()
         self.distance = distance
         self.num_ellips = num_ellips
+        self.num_connections = num_connections
 
         # Code adapted from Open3D tutorial
         print('Loading the mesh:')
@@ -59,11 +60,12 @@ class MeshGenerator(object):
 
         colored = []
         self.vis_particles = []
-        self.vis_connections = []
+        self.vis_connections = o3d.geometry.LineSet()
 
         all_positions = []
         all_rotations = []
         all_radii = []
+        all_connections = []
 
         for point in centers:
 
@@ -86,27 +88,52 @@ class MeshGenerator(object):
 
                 obb = o3d.geometry.OrientedBoundingBox.create_from_points(points=temp)
 
-                # Creation of ellipsoid
-                e_center = obb.center
-                all_positions.append((e_center))
-                e_rotation = obb.R
-                all_rotations.append((e_rotation))
                 e_radii = np.array([obb.extent[0] / 2, obb.extent[1] / 2, obb.extent[2] / 2])
-                all_radii.append((e_radii))
 
-                # Coloring points
-                for ind in neighbors[0]:
-                    colored.append((ind))
+                if np.max(e_radii) > 0.15: # too small particle. Here, I am avoiding the inference of small spheres
+                    # Creation of ellipsoid
+                    e_center = obb.center
+                    all_positions.append((e_center))
+                    e_rotation = obb.R
+                    all_rotations.append((e_rotation))
+                    e_radii = np.array([obb.extent[0] / 2, obb.extent[1] / 2, obb.extent[2] / 2])
+                    all_radii.append((e_radii))
+                    all_radii.append((e_radii))
 
-                # Coloring the center
-                center_index = np.where(np.all(centers == point, axis=1))
-                colored.append(center_index[0][0])
+                    # Coloring points
+                    for ind in neighbors[0]:
+                        colored.append((ind))
+
+                    # Coloring the center
+                    center_index = np.where(np.all(centers == point, axis=1))
+                    colored.append(center_index[0][0])
 
             except RuntimeError as e: # faces may be coplanar. Need to retry
                 continue
 
         for i in range(all_positions.__len__()):
             self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i], all_rotations[i]))
+
+        # Create connections between particles
+
+        # Another KDTree to simplify queries
+        support_structure = o3d.geometry.PointCloud()
+        points = np.array(all_positions)
+        support_structure.points = o3d.utility.Vector3dVector(points)
+        support_tree = KDTree(points)
+
+        for point in points:
+            # find the closer 4 neighbors and create connections
+            dist, neighbors = support_tree.query(point.reshape(1, -1), k=self.num_connections + 1)  # +1 because one
+                                                                                        # neighbor is the point itself
+            point_index = np.where(np.all(points == point, axis=1))
+            for i in neighbors[0]:
+                connection = [point_index[0][0], i]
+                if (point_index[0][0] != i) and ( not all_connections.__contains__(connection)):
+                    all_connections.append(connection)
+
+        self.vis_connections.points = o3d.utility.Vector3dVector(points)
+        self.vis_connections.lines = o3d.utility.Vector2iVector(all_connections)
 
         self.visualize_graph()
         return
@@ -149,7 +176,10 @@ class MeshGenerator(object):
                          [0., 0., 1. / (radii[2] * radii[2])]])
 
     def visualize_graph(self):
-        o3d.visualization.draw_geometries(self.vis_particles)
+        geometries = self.vis_particles.copy()
+        connections = self.vis_connections
+        geometries.append(connections)
+        o3d.visualization.draw_geometries(geometries)
 
     def create_ellipsoid_mesh(self, radii, translation, rotation):
         mesh = o3d.geometry.TriangleMesh.create_sphere(radius=1.0, resolution=120)
@@ -159,7 +189,6 @@ class MeshGenerator(object):
         scale[0, 0] = max(radii[0], 0.1)
         scale[1, 1] = max(radii[1], 0.1)
         scale[2, 2] = max(radii[2], 0.1)
-
         tr = np.identity(4, dtype=float)
         tr[0, 3] = translation[0]
         tr[1, 3] = translation[1]
@@ -180,7 +209,7 @@ class MeshGenerator(object):
 
 
 def main():
-    generator = MeshGenerator("../Meshes/duck_pbs.glb", 0.35, 10000)  # 150, 0.45 Candidate radius, Candidate particle centers
+    generator = MeshGenerator("../Meshes/duck_pbs.glb", 0.35, 10000, 6)  # 150, 0.45 Candidate radius, Candidate particle centers
     generator.create_graph()
 
 
