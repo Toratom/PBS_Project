@@ -70,6 +70,7 @@ class MeshGenerator(object):
 
         all_positions = []
         all_rotations = []
+        all_quaternions = []
         all_radii = []
         all_connections = []
 
@@ -101,7 +102,8 @@ class MeshGenerator(object):
                     e_center = obb.center
                     all_positions.append((e_center))
                     e_rotation = obb.R
-                    all_rotations.append((e_rotation))
+                    all_quaternions.append((self.matrix_to_quaternion(e_rotation))) # Our solver works on quaternions
+                    all_rotations.append(e_rotation)
                     e_radii = np.array([obb.extent[0] / 2, obb.extent[1] / 2, obb.extent[2] / 2])
                     all_radii.append((e_radii))
                     all_radii.append((e_radii))
@@ -143,7 +145,7 @@ class MeshGenerator(object):
 
         self.graph["centers"] = np.array(all_positions)
         self.graph["radii"] = np.array(all_radii)
-        self.graph["rotations"] = np.array(all_rotations)
+        self.graph["rotations"] = np.array(all_quaternions)
         self.graph["connections"] = np.array(all_connections)
         # self.visualize_graph()
         return
@@ -223,12 +225,42 @@ class MeshGenerator(object):
         with open('../Meshes/' + name + '.pkl', 'wb') as out:
             pickle.dump(self.graph, out, pickle.HIGHEST_PROTOCOL)
 
+    def matrix_to_quaternion(self, M):
+        tr = M[0, 0] + M[1, 1] + M[2, 2]
 
+        q = np.array([0., 0., 0., 1.])
+        if (tr > 0):
+            S = np.sqrt(tr + 1.0) * 2.  # S=4*qw
+            q[3] = 0.25 * S
+            q[0] = (M[2, 1] - M[1, 2]) / S
+            q[1] = (M[0, 2] - M[2, 0]) / S
+            q[2] = (M[1, 0] - M[0, 1]) / S
+        elif ((M[0, 0] > M[1, 1]) & (M[0, 0] > M[2, 2])):
+            S = np.sqrt(1.0 + M[0, 0] - M[1, 1] - M[2, 2]) * 2  # S=4*qx
+            q[3] = (M[2, 1] - M[1, 2]) / S
+            q[0] = 0.25 * S
+            q[1] = (M[0, 1] + M[1, 0]) / S
+            q[2] = (M[0, 2] + M[2, 0]) / S
+        elif (M[1, 1] > M[2, 2]):
+            S = np.sqrt(1.0 + M[1, 1] - M[0, 0] - M[2, 2]) * 2  # S=4*qy
+            q[3] = (M[0, 2] - M[2, 0]) / S
+            q[0] = (M[0, 1] + M[1, 0]) / S
+            q[1] = 0.25 * S
+            q[2] = (M[1, 2] + M[2, 1]) / S
+        else:
+            S = np.sqrt(1.0 + M[2, 2] - M[0, 0] - M[1, 1]) * 2  # S=4*qz
+            q[3] = (M[1, 0] - M[0, 1]) / S
+            q[0] = (M[0, 2] + M[2, 0]) / S
+            q[1] = (M[1, 2] + M[2, 1]) / S
+            q[2] = 0.25 * S
+
+        return q
 def main():
     generator = MeshGenerator("../Meshes/duck_pbs.glb", 0.35, 10000,
                               6)  # 150, 0.45 Candidate radius, Candidate particle centers
     generator.create_graph()
     generator.export_particle_graph('duck')
+    generator.visualize_graph()
 
 
 if __name__ == "__main__":

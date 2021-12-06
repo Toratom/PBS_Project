@@ -1,3 +1,5 @@
+import pickle
+
 import numpy as np
 import itertools
 import taichi as ti
@@ -97,7 +99,26 @@ class Simulation(object):
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
-    nb_of_ellipsoids = 28
+
+    # DUCK:
+    with open('../Meshes/duck.pkl', 'rb') as inp:
+        graph = pickle.load(inp)
+
+    nb_of_ellipsoids = graph["centers"].shape[0]
+    nb_of_pairs = graph["connections"].shape[0]
+    height = np.array([0,8,0])
+    radii_array = graph["radii"]
+    ini_centers = graph["centers"] + height
+    ini_rotation = graph["rotations"]
+    connections = graph["connections"]
+    bodies = np.array([0 for i in range(nb_of_ellipsoids)])  # To be changed for multiple ducks
+    ini_velocities = np.zeros(ini_centers.shape)
+    ini_angular_velocities = np.zeros(ini_centers.shape)
+    # ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
+    ini_mass = np.array([10 for i in range(nb_of_ellipsoids)]) * 100
+    gravity = np.array([0., -9.8, 0.])
+
+    '''nb_of_ellipsoids = 28
     nb_of_pairs = 72  # (nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
     # radii_array = np.array([[0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2], [0.2, 0.2, 0.2]])
     offset = -0.5
@@ -215,7 +236,7 @@ class Simulation(object):
     ini_angular_velocities = np.zeros(ini_centers.shape)
     # ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
     ini_mass = np.array([10., 10., 10., 10., 10., 10., 10., 10., 40., 40., 40., 40., 40., 40., 10., 10., 10., 10., 10., 10., 10., 10., 40., 40., 40., 40., 40., 40.]) * 100
-    gravity = np.array([0., -9.8, 0.])
+    gravity = np.array([0., -9.8, 0.])'''
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
