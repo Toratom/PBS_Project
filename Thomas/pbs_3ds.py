@@ -537,7 +537,8 @@ class Simulation(object):
             #if mi > mj, wj > wi because pj moves more than the bigger particle 
             mi = self.ellips_field.get_mass(idxi)
             mj = self.ellips_field.get_mass(idxj)
-            wi = np.exp(-mi**2)/(np.exp(-mi**2) + np.exp(-mj**2))
+
+            wi = ti.exp(-mi**2)/(ti.exp(-mi**2) + ti.exp(-mj**2))
             # pi = pi - (d/2) * n 
             # pj = pj + (d/2) * n 
             pi = pi - d * n * wi
@@ -756,7 +757,7 @@ class Simulation(object):
             weighted_rotation = 0
             weighted_translation = 0
 
-            weights = [np.exp(-dist[i]**2/(2*sigma**2)) for i in range(len(dist))]
+            weights = [ti.exp(-dist[i]**2/(2*sigma**2)) for i in range(len(dist))]
             weights_normalized = [weights[i]/weights.sum() for i in range(len(weights))]
             for i in range(len(neighbors_particles_indices)):
                 wi = weights_normalized[i]
