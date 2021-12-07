@@ -101,7 +101,7 @@ class Simulation(object):
     # ----------------------------------------------------------------------------------------------
 
     # DUCK:
-    with open('../Meshes/duck.pkl', 'rb') as inp:
+    with open('Meshes/duck.pkl', 'rb') as inp:
         graph = pickle.load(inp)
 
     nb_of_ellipsoids = graph["centers"].shape[0]

@@ -74,14 +74,18 @@ class MeshGenerator(object):
         all_radii = []
         all_connections = []
 
-        for point in centers:
+        #print(len(centers))
 
+        for point in centers:
+            print("Point - step 0")
             # Find nearest vertices inside the cloud
             computed_distance = self.find_overlapping(point, self.distance, len(all_positions),
                                                       all_radii, all_positions)
+            print("computed distance : ", computed_distance)
             neighbors = support_tree.query_radius(point.reshape(1, -1), computed_distance)  # distance chosen by artist
 
             # From the indexes, recover the points
+            #print(neighbors[0])
             temp = []
             for ind in neighbors[0]:
                 # Controlling that the point has not already been taken
@@ -91,13 +95,24 @@ class MeshGenerator(object):
 
             # Creating OBB, when possible
             try:
+                print("Point - step 1")
+
+                print("temp len : ", len(temp))
+                if len(temp) < 2 :
+                    raise RuntimeError()
                 temp = o3d.utility.Vector3dVector(np.array(temp))
+                print("Point - step 2 - temp done")
 
                 obb = o3d.geometry.OrientedBoundingBox.create_from_points(points=temp)
+                print("Point - step 3 - obb done")
 
                 e_radii = np.array([obb.extent[0] / 2, obb.extent[1] / 2, obb.extent[2] / 2])
 
+                print("e_radii : ", e_radii)
+
                 if np.max(e_radii) > 0.15:  # too small particle. Here, I am avoiding the inference of small spheres
+                    print("Point - step 4 - radi > 0.15")
+
                     # Creation of ellipsoid
                     e_center = obb.center
                     all_positions.append((e_center))
@@ -117,7 +132,10 @@ class MeshGenerator(object):
                     colored.append(center_index[0][0])
 
             except RuntimeError as e:  # faces may be coplanar. Need to retry
+                print("ERROR")
                 continue
+        
+        print("End Point")
 
         for i in range(all_positions.__len__()):
             self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i], all_rotations[i]))
@@ -188,6 +206,7 @@ class MeshGenerator(object):
                          [0., 0., 1. / (radii[2] * radii[2])]])
 
     def visualize_graph(self):
+        print("Hello3")
         geometries = self.vis_particles.copy()
         connections = self.vis_connections
         geometries.append(connections)
@@ -220,6 +239,7 @@ class MeshGenerator(object):
         return mesh
 
     def export_particle_graph(self, name):
+        print("Hello2")
         if self.graph.keys().__len__() == 0:
             self.create_graph()
         with open('../Meshes/' + name + '.pkl', 'wb') as out:
@@ -256,10 +276,10 @@ class MeshGenerator(object):
 
         return q
 def main():
-    generator = MeshGenerator("../Meshes/duck_pbs.glb", 0.35, 10000,
-                              6)  # 150, 0.45 Candidate radius, Candidate particle centers
+    generator = MeshGenerator("Meshes/duck_pbs.glb", 0.35, 10000,
+                              6)  # 150, 0.45 Candidate radius, Candidate particle centers ../Meshes/duck_pbs.glb"
     generator.create_graph()
-    generator.export_particle_graph('duck')
+    generator.export_particle_graph('duck2')
     generator.visualize_graph()
 
 
