@@ -1,4 +1,5 @@
 import pickle
+import sys
 
 import open3d as o3d
 import numpy as np
@@ -8,7 +9,7 @@ from sklearn.neighbors import KDTree
 
 
 class MeshGenerator(object):
-    def __init__(self, mesh_path, distance, num_ellips, num_connections):
+    def __init__(self, mesh_path, distance, num_ellips, r_connections, d_connections):
         self.graph = {}
         '''self.graph["centers"] = all_positions
         self.graph["radii"] = all_radii
@@ -19,11 +20,13 @@ class MeshGenerator(object):
         self.vis_connections = o3d.geometry.LineSet()
         self.distance = distance
         self.num_ellips = num_ellips
-        self.num_connections = num_connections
+        self.r_connections = r_connections
+        self.d_connections = d_connections
 
         # Code adapted from Open3D tutorial
         print('Loading the mesh:')
         self.mesh = o3d.io.read_triangle_mesh(mesh_path)
+        #No longer needed with the loader :
         # Rotating the mesh. Blender inverts y and z
         # R = self.mesh.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
         # self.mesh.rotate(R, center=(0, 0, 0))
@@ -96,13 +99,13 @@ class MeshGenerator(object):
                 obb = o3d.geometry.OrientedBoundingBox.create_from_points(points=temp)
 
                 # We put the radiis back in our coordinate system
-                big_r = min(max(obb.extent[0] / 2, 0.1), computed_distance)
-                middle_r = min(max(obb.extent[1] / 2, 0.1), computed_distance)
-                small_r = min(max(obb.extent[2] / 2, 0.1), computed_distance)
+                big_r = min(max(obb.extent[0] / 2, 0.2), computed_distance)
+                middle_r = min(max(obb.extent[1] / 2, 0.2), computed_distance)
+                small_r = min(max(obb.extent[2] / 2, 0.2), computed_distance)
 
                 e_radii = np.array([big_r, small_r, middle_r])
 
-                if np.max(e_radii) > 0.15:  # not too small particle. Here, I am avoiding the inference of small spheres
+                if np.max(e_radii) > 0.3:  # not too small particle. Here, I am avoiding the inference of small spheres
                     # Creation of ellipsoid
                     e_center = obb.center
                     obb_R = np.zeros((3, 3))
@@ -145,11 +148,16 @@ class MeshGenerator(object):
         support_tree = KDTree(points)
 
         for point in points:
-            # find the closer 4 neighbors and create connections
-            dist, neighbors = support_tree.query(point.reshape(1, -1), k=self.num_connections + 1)  # +1 because one
+            # find the closest neighbors and create connections
+            # Combination of two approached: by distance and by neighbors, to optimize results
+            dist, neighbors_num = support_tree.query(point.reshape(1, -1), k = (self.d_connections + 1))  # +1 because one is the point itself
+            neighbors_num = neighbors_num[0]
+            neighbors_dist = support_tree.query_radius(point.reshape(1, -1), self.r_connections)
+            neighbors_dist = neighbors_dist[0]
+            neighbors = neighbors_dist[np.isin(neighbors_dist, neighbors_num)]
             # neighbor is the point itself
             point_index = np.where(np.all(points == point, axis=1))
-            for i in neighbors[0]:
+            for i in neighbors:
                 connection = [point_index[0][0], i]
                 if (point_index[0][0] != i) and (not all_connections.__contains__(connection)):
                     all_connections.append(connection)
@@ -161,9 +169,6 @@ class MeshGenerator(object):
         self.graph["radii"] = np.array(all_radii)
         self.graph["rotations"] = np.array(all_quaternions)
         self.graph["connections"] = np.array(all_connections)
-
-        print(all_quaternions.__len__(), all_rotations.__len__())
-        # self.visualize_graph()
         return
 
     def find_overlapping(self, pos1, r1, nb_of_ellipsoids, radii, positions, separation=0.001):
@@ -257,7 +262,7 @@ class MeshGenerator(object):
     def export_particle_graph(self, name):
         if self.graph.keys().__len__() == 0:
             self.create_graph()
-        with open('Meshes/' + name + '.pkl', 'wb') as out: #../Meshes
+        with open(name + '.pkl', 'wb') as out:
             pickle.dump(self.graph, out, pickle.HIGHEST_PROTOCOL)
 
     def matrix_to_quaternion(self, M):
@@ -312,14 +317,44 @@ class MeshGenerator(object):
         return rot_matrix
 
 
-def main():  # TODO: add arguments to main
-    generator = MeshGenerator("Meshes/duck_pbs.glb", 0.65, 150,  # 0.35, 10000,
-                              6) # 150, 0.45 Candidate radius, Candidate particle centers
-    # generator.visualize_mesh()
-    generator.create_graph()
-    generator.export_particle_graph('duck')
-    generator.visualize_graph()
+def main():  # TODO: add arguments to main. Also allow to rotate mesh to import pre-rotated one in simulator
 
+    # main arguments:
+    arguments = sys.argv
+    if arguments.__len__() < 5:
+        raise RuntimeError("Too few arguments")
+    candidate_radius = float(arguments[1])
+    n_candidate_centers = int(arguments[2])
+    candidate_conn_radius = float(arguments[3])
+    candidate_conn_number = int(arguments[4])
+
+    mesh_name = input("Insert mesh name (with extension and path):\n")
+    print("Loading...")
+    generator = MeshGenerator(mesh_name, candidate_radius, n_candidate_centers,
+                              candidate_conn_radius, candidate_conn_number)
+    generator.create_graph()
+    print("Done!")
+
+    while True:
+        print("Welcome to Mesh Generator. Your mesh has been converted.")
+        command = input("Commands: q - quit, vm - visualize mesh, vg - visualize graph - g name (with path, no ext) - "
+                        "export mesh\n")
+        if command == "q":
+            exit()
+        elif command == "vm":
+            generator.visualize_mesh()
+        elif command == "vg":
+            generator.visualize_graph()
+        elif command[0] == "g" and command.__len__() >= 3:
+            name = command[2:command.__len__()]
+            generator.export_particle_graph(name)
+        else:
+            print("Wrong command")
 
 if __name__ == "__main__":
+    # Parameters of main:
+    # candidate_radius = maximum radius of the inferred particles
+    # n_candidate_centers = maximum number of inferred particles
+    # candidate_conn_radius = radius inside which we look for neighbors for connections
+    # candidate_conn_number = maximum number of neighbors of each particle
     main()
