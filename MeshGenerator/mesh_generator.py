@@ -2,10 +2,9 @@ import pickle
 
 import open3d as o3d
 import numpy as np
-from scipy.spatial.distance import pdist
 from sklearn.neighbors import KDTree
-import math
-import itertools
+# import math
+# import itertools
 
 
 class MeshGenerator(object):
@@ -25,6 +24,9 @@ class MeshGenerator(object):
         # Code adapted from Open3D tutorial
         print('Loading the mesh:')
         self.mesh = o3d.io.read_triangle_mesh(mesh_path)
+        # Rotating the mesh. Blender inverts y and z
+        # R = self.mesh.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
+        # self.mesh.rotate(R, center=(0, 0, 0))
         print(self.mesh)
         print('Vertices:')
         print(np.asarray(self.mesh.vertices))
@@ -74,18 +76,13 @@ class MeshGenerator(object):
         all_radii = []
         all_connections = []
 
-        #print(len(centers))
-
         for point in centers:
-            print("Point - step 0")
             # Find nearest vertices inside the cloud
             computed_distance = self.find_overlapping(point, self.distance, len(all_positions),
                                                       all_radii, all_positions)
-            print("computed distance : ", computed_distance)
             neighbors = support_tree.query_radius(point.reshape(1, -1), computed_distance)
 
             # From the indexes, recover the points
-            #print(neighbors[0])
             temp = []
             for ind in neighbors[0]:
                 # Controlling that the point has not already been taken
@@ -95,49 +92,50 @@ class MeshGenerator(object):
 
             # Creating OBB, when possible
             try:
-                print("Point - step 1")
-
-                print("temp len : ", len(temp))
-                # if len(temp) < 2 :
-                #     raise RuntimeError()
                 temp = o3d.utility.Vector3dVector(np.array(temp))
-                print("Point - step 2 - temp done")
-
                 obb = o3d.geometry.OrientedBoundingBox.create_from_points(points=temp)
-                print("Point - step 3 - obb done")
 
-                a = min(max(obb.extent[0] / 2, 0.1), computed_distance)
-                b = min(max(obb.extent[1] / 2, 0.1), computed_distance)
-                c = min(max(obb.extent[2] / 2, 0.1), computed_distance)
-                e_radii = np.array([a, b, c])
+                # We put the radiis back in our coordinate system
+                big_r = min(max(obb.extent[0] / 2, 0.1), computed_distance)
+                middle_r = min(max(obb.extent[1] / 2, 0.1), computed_distance)
+                small_r = min(max(obb.extent[2] / 2, 0.1), computed_distance)
+
+                e_radii = np.array([big_r, small_r, middle_r])
 
                 if np.max(e_radii) > 0.15:  # not too small particle. Here, I am avoiding the inference of small spheres
                     # Creation of ellipsoid
                     e_center = obb.center
-                    e_rotation = obb.R
+                    obb_R = np.zeros((3, 3))
+                    obb_R[:, 0] = obb.R[:, 0]
+                    obb_R[:, 1] = obb.R[:, 2]
+                    obb_R[:, 2] = obb.R[:, 1]
+
+                    if np.linalg.det(obb_R) < 0: # avoid improper rotations
+                        e_rotation = - obb_R
+                    else:
+                        e_rotation = obb_R
+
                     all_positions.append(e_center)
-                    all_quaternions.append((self.matrix_to_quaternion(e_rotation)))  # Our solver works on quaternions
+                    all_quaternions.append(self.matrix_to_quaternion(e_rotation))  # Our solver works on quaternions
                     all_rotations.append(e_rotation)
                     all_radii.append(e_radii)
 
                     # Coloring points
                     for ind in neighbors[0]:
                         if not colored.__contains__(ind):
-                            colored.append((ind))
+                            colored.append(ind)
 
                     # Coloring the center
                     center_index = np.where(np.all(centers == point, axis=1))
                     colored.append(center_index[0][0])
 
             except :  # faces may be coplanar. Need to retry
-                print("ERROR")
                 continue
-        
-        print("End Point")
 
         for i in range(all_positions.__len__()):
-            self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i], all_rotations[i]))
-
+            # self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i], all_rotations[i]))
+            self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i],
+                                                                 all_rotations[i], visualize_orientation = False))
         # Create connections between particles
 
         # Another KDTree to simplify queries
@@ -163,6 +161,8 @@ class MeshGenerator(object):
         self.graph["radii"] = np.array(all_radii)
         self.graph["rotations"] = np.array(all_quaternions)
         self.graph["connections"] = np.array(all_connections)
+
+        print(all_quaternions.__len__(), all_rotations.__len__())
         # self.visualize_graph()
         return
 
@@ -205,13 +205,12 @@ class MeshGenerator(object):
                          [0., 0., 1. / (radii[2] * radii[2])]])
 
     def visualize_graph(self):
-        print("Hello3")
         geometries = self.vis_particles.copy()
         connections = self.vis_connections
         geometries.append(connections)
         o3d.visualization.draw_geometries(geometries)
 
-    def create_ellipsoid_mesh(self, radii, translation, rotation):
+    def create_ellipsoid_mesh(self, radii, translation, rotation, visualize_orientation = False):
         mesh = o3d.geometry.TriangleMesh.create_sphere(radius=1.0, resolution=120)
 
         scale = np.identity(4, dtype=float)
@@ -227,21 +226,38 @@ class MeshGenerator(object):
         rot = np.identity(4, dtype=float)
         rot[:3, :3] = rotation
 
-        T = rot @ scale
-
-        mesh.transform(T)
+        # T = rot @ scale
+        mesh.transform(scale)
+        mesh.rotate(rotation)
+        # mesh.transform(T)
         mesh.translate(translation)
 
+        mesh.paint_uniform_color([0., 0., 1.])
         mesh.compute_vertex_normals()
         mesh.compute_triangle_normals()
 
+        if (visualize_orientation) :
+            #Y the green axis should be the normal direction
+            axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+            # scale = np.identity(4, dtype=float)
+            # scale[3, 3] = 1.0
+            # scale[0, 0] = 2 * max(radii[0], 0.1)
+            # scale[1, 1] = 2 * max(radii[1], 0.1)
+            # scale[2, 2] = 2 * max(radii[2], 0.1)
+            # axis.transform(scale)
+            axis.rotate(rotation)
+            axis.translate(translation)
+
+            mesh = mesh + axis
+
+        if np.linalg.det(rotation) < 0:
+            mesh.paint_uniform_color([1., 0., 0.])
         return mesh
 
     def export_particle_graph(self, name):
-        print("Hello2")
         if self.graph.keys().__len__() == 0:
             self.create_graph()
-        with open('../Meshes/' + name + '.pkl', 'wb') as out:
+        with open('Meshes/' + name + '.pkl', 'wb') as out: #../Meshes
             pickle.dump(self.graph, out, pickle.HIGHEST_PROTOCOL)
 
     def matrix_to_quaternion(self, M):
@@ -274,12 +290,34 @@ class MeshGenerator(object):
             q[2] = 0.25 * S
 
         return q
-def main():
-    generator = MeshGenerator("Meshes/duck_pbs.glb", 0.7, 200,#0.35, 10000,
-                              6)  # 150, 0.45 Candidate radius, Candidate particle centers
+
+    def quaternion_to_matrix(self, q):
+        # First row of the rotation matrix
+        r00 = 2 * (q[3] * q[3] + q[0] * q[0]) - 1
+        r01 = 2 * (q[0] * q[1] - q[3] * q[2])
+        r02 = 2 * (q[0] * q[2] + q[3] * q[1])
+
+        # Second row of the rotation matrix
+        r10 = 2 * (q[0] * q[1] + q[3] * q[2])
+        r11 = 2 * (q[3] * q[3] + q[1] * q[1]) - 1
+        r12 = 2 * (q[1] * q[2] - q[3] * q[0])
+
+        # Third row of the rotation matrix
+        r20 = 2 * (q[0] * q[2] - q[3] * q[1])
+        r21 = 2 * (q[1] * q[2] + q[3] * q[0])
+        r22 = 2 * (q[3] * q[3] + q[2] * q[2]) - 1
+
+        # 3x3 rotation matrix
+        rot_matrix = np.array([[r00, r01, r02], [r10, r11, r12], [r20, r21, r22]])
+        return rot_matrix
+
+
+def main():  # TODO: add arguments to main
+    generator = MeshGenerator("Meshes/duck_pbs.glb", 0.65, 150,  # 0.35, 10000,
+                              6) # 150, 0.45 Candidate radius, Candidate particle centers
     # generator.visualize_mesh()
     generator.create_graph()
-    generator.export_particle_graph('duck2')
+    generator.export_particle_graph('duck')
     generator.visualize_graph()
 
 

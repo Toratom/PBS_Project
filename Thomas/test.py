@@ -2,131 +2,140 @@ import open3d as o3d
 import numpy as np
 import random
 
-def quaternion_to_matrix(q):
-    # First row of the rotation matrix
-    r00 = 2 * (q[3] * q[3] + q[0] * q[0]) - 1
-    r01 = 2 * (q[0] * q[1] - q[3] * q[2])
-    r02 = 2 * (q[0] * q[2] + q[3] * q[1])
+o3d.utility.Vector3dVector(np.array([]))
 
-    # Second row of the rotation matrix
-    r10 = 2 * (q[0] * q[1] + q[3] * q[2])
-    r11 = 2 * (q[3] * q[3] + q[1] * q[1]) - 1
-    r12 = 2 * (q[1] * q[2] - q[3] * q[0])
-
-    # Third row of the rotation matrix
-    r20 = 2 * (q[0] * q[2] - q[3] * q[1])
-    r21 = 2 * (q[1] * q[2] + q[3] * q[0])
-    r22 = 2 * (q[3] * q[3] + q[2] * q[2]) - 1
-
-    # 3x3 rotation matrix
-    rot_matrix = np.array([[r00, r01, r02], [r10, r11, r12], [r20, r21, r22]])
-    return rot_matrix
-
-def matrix_to_quaternion2(M) :
-    tr = M[0, 0] + M[1, 1] + M[2, 2]
-
-    if (tr > 0) : 
-        S = np.sqrt(tr+1.0) * 2 # S=4*qw 
-        qw = 0.25 * S
-        qx = (M[2, 1] - M[1, 2]) / S
-        qy = (M[0, 2] - M[2, 0]) / S
-        qz = (M[1, 0] - M[0, 1]) / S 
-    elif ((M[0, 0] > M[1, 1])&(M[0, 0] > M[2, 2])) :
-        S = np.sqrt(1.0 + M[0, 0] - M[1, 1] - M[2, 2]) * 2 # S=4*qx 
-        qw = (M[2, 1] - M[1, 2]) / S
-        qx = 0.25 * S
-        qy = (M[0, 1] + M[1, 0]) / S
-        qz = (M[0, 2] + M[2, 0]) / S 
-    elif (M[1, 1] > M[2, 2]) :
-        S = np.sqrt(1.0 + M[1, 1] - M[0, 0] - M[2, 2]) * 2 # S=4*qy
-        qw = (M[0, 2] - M[2, 0]) / S
-        qx = (M[0, 1] + M[1, 0]) / S
-        qy = 0.25 * S
-        qz = (M[1, 2] + M[2, 1]) / S
-    else :
-        S = np.sqrt(1.0 + M[2, 2] - M[0, 0] - M[1, 1]) * 2 # S=4*qz
-        qw = (M[1, 0] - M[0, 1]) / S
-        qx = (M[0, 2] + M[2, 0]) / S
-        qy = (M[1, 2] + M[2, 1]) / S
-        qz = 0.25 * S
-
-    q = np.array([qx, qy, qz, qw])
-    return q
+# a = np.array([])
+# try :
+#     temp = o3d.utility.Vector3dVector(np.array([]))
+# except:
+#     print("error")
 
 
-coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+# def quaternion_to_matrix(q):
+#     # First row of the rotation matrix
+#     r00 = 2 * (q[3] * q[3] + q[0] * q[0]) - 1
+#     r01 = 2 * (q[0] * q[1] - q[3] * q[2])
+#     r02 = 2 * (q[0] * q[2] + q[3] * q[1])
 
-radii = [1., 0.05, 0.5]
-visual_mesh = o3d.geometry.TriangleMesh.create_sphere(radius = 1.0, resolution = 120)
-elli_axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
-T = np.zeros((4, 4), dtype = float)
-T[3, 3] = 1.0
-T[0, 0] = radii[0]
-T[1, 1] = radii[1]
-T[2, 2] = radii[2]
-visual_mesh.transform(T)
-#adding rotation
-theta = np.radians(90.)
-u = np.array([0., 0., -1.])
-q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
-R = quaternion_to_matrix(q)
-T = np.zeros((4, 4), dtype = float)
-T[:3, :3] = R
-T[3, 3] = 1.0
-visual_mesh.transform(T)
-elli_axis.transform(T)
+#     # Second row of the rotation matrix
+#     r10 = 2 * (q[0] * q[1] + q[3] * q[2])
+#     r11 = 2 * (q[3] * q[3] + q[1] * q[1]) - 1
+#     r12 = 2 * (q[1] * q[2] - q[3] * q[0])
 
-visual_mesh.compute_vertex_normals()
-visual_mesh.compute_triangle_normals()
+#     # Third row of the rotation matrix
+#     r20 = 2 * (q[0] * q[2] - q[3] * q[1])
+#     r21 = 2 * (q[1] * q[2] + q[3] * q[0])
+#     r22 = 2 * (q[3] * q[3] + q[2] * q[2]) - 1
 
-#print(np.asarray(visual_mesh.vertices))
+#     # 3x3 rotation matrix
+#     rot_matrix = np.array([[r00, r01, r02], [r10, r11, r12], [r20, r21, r22]])
+#     return rot_matrix
 
-obb = o3d.geometry.OrientedBoundingBox.create_from_points(points=visual_mesh.vertices)
-big_r = obb.extent[0] / 2.
-middle_r = obb.extent[1] / 2.
-small_r = obb.extent[2] / 2.
-e_radii = np.array([big_r, small_r, middle_r]) #change order to follow convention normal on y
+# def matrix_to_quaternion2(M) :
+#     tr = M[0, 0] + M[1, 1] + M[2, 2]
 
-obb_R = np.zeros((3, 3))
-obb_R[:, 0] = obb.R[:, 0]
-obb_R[:, 1] = obb.R[:, 2]
-obb_R[:, 2] = obb.R[:, 1]
+#     if (tr > 0) : 
+#         S = np.sqrt(tr+1.0) * 2 # S=4*qw 
+#         qw = 0.25 * S
+#         qx = (M[2, 1] - M[1, 2]) / S
+#         qy = (M[0, 2] - M[2, 0]) / S
+#         qz = (M[1, 0] - M[0, 1]) / S 
+#     elif ((M[0, 0] > M[1, 1])&(M[0, 0] > M[2, 2])) :
+#         S = np.sqrt(1.0 + M[0, 0] - M[1, 1] - M[2, 2]) * 2 # S=4*qx 
+#         qw = (M[2, 1] - M[1, 2]) / S
+#         qx = 0.25 * S
+#         qy = (M[0, 1] + M[1, 0]) / S
+#         qz = (M[0, 2] + M[2, 0]) / S 
+#     elif (M[1, 1] > M[2, 2]) :
+#         S = np.sqrt(1.0 + M[1, 1] - M[0, 0] - M[2, 2]) * 2 # S=4*qy
+#         qw = (M[0, 2] - M[2, 0]) / S
+#         qx = (M[0, 1] + M[1, 0]) / S
+#         qy = 0.25 * S
+#         qz = (M[1, 2] + M[2, 1]) / S
+#     else :
+#         S = np.sqrt(1.0 + M[2, 2] - M[0, 0] - M[1, 1]) * 2 # S=4*qz
+#         qw = (M[1, 0] - M[0, 1]) / S
+#         qx = (M[0, 2] + M[2, 0]) / S
+#         qy = (M[1, 2] + M[2, 1]) / S
+#         qz = 0.25 * S
 
-obb_q = matrix_to_quaternion2(obb_R)
+#     q = np.array([qx, qy, qz, qw])
+#     return q
 
-# R_vis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+
+# coordinate_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+
+# radii = [1., 0.05, 0.5]
+# visual_mesh = o3d.geometry.TriangleMesh.create_sphere(radius = 1.0, resolution = 120)
+# elli_axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
 # T = np.zeros((4, 4), dtype = float)
-# T[:3, :3] = R
 # T[3, 3] = 1.0
-# R_vis.transform(T)
-# obb_R_vis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
-# T = np.zeros((4, 4), dtype = float)
-# T[:3, :3] = obb_R
-# T[3, 3] = 1.0
-# obb_R_vis.transform(T)
-# #o3d.visualization.draw_geometries([visual_mesh, elli_axis])
-# o3d.visualization.draw_geometries([R_vis])
-
-visual_mesh_rebuilt = o3d.geometry.TriangleMesh.create_sphere(radius = 1.0, resolution = 120)
-obb_R_vis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
-T = np.zeros((4, 4), dtype = float)
-T[3, 3] = 1.0
-T[0, 0] = e_radii[0]
-T[1, 1] = e_radii[1]
-T[2, 2] = e_radii[2]
-visual_mesh_rebuilt.transform(T)
-#adding rotation
+# T[0, 0] = radii[0]
+# T[1, 1] = radii[1]
+# T[2, 2] = radii[2]
+# visual_mesh.transform(T)
+# #adding rotation
 # theta = np.radians(90.)
 # u = np.array([0., 0., -1.])
 # q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
 # R = quaternion_to_matrix(q)
 # T = np.zeros((4, 4), dtype = float)
-T[:3, :3] = quaternion_to_matrix(obb_q) #obb_R
-T[3, 3] = 1.0
-visual_mesh_rebuilt.transform(T)
-obb_R_vis.transform(T)
-visual_mesh_rebuilt.compute_vertex_normals()
-visual_mesh_rebuilt.compute_triangle_normals()
+# T[:3, :3] = R
+# T[3, 3] = 1.0
+# visual_mesh.transform(T)
+# elli_axis.transform(T)
+
+# visual_mesh.compute_vertex_normals()
+# visual_mesh.compute_triangle_normals()
+
+# #print(np.asarray(visual_mesh.vertices))
+
+# obb = o3d.geometry.OrientedBoundingBox.create_from_points(points=visual_mesh.vertices)
+# big_r = obb.extent[0] / 2.
+# middle_r = obb.extent[1] / 2.
+# small_r = obb.extent[2] / 2.
+# e_radii = np.array([big_r, small_r, middle_r]) #change order to follow convention normal on y
+
+# obb_R = np.zeros((3, 3))
+# obb_R[:, 0] = obb.R[:, 0]
+# obb_R[:, 1] = obb.R[:, 2]
+# obb_R[:, 2] = obb.R[:, 1]
+
+# obb_q = matrix_to_quaternion2(obb_R)
+
+# # R_vis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+# # T = np.zeros((4, 4), dtype = float)
+# # T[:3, :3] = R
+# # T[3, 3] = 1.0
+# # R_vis.transform(T)
+# # obb_R_vis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+# # T = np.zeros((4, 4), dtype = float)
+# # T[:3, :3] = obb_R
+# # T[3, 3] = 1.0
+# # obb_R_vis.transform(T)
+# # #o3d.visualization.draw_geometries([visual_mesh, elli_axis])
+# # o3d.visualization.draw_geometries([R_vis])
+
+# visual_mesh_rebuilt = o3d.geometry.TriangleMesh.create_sphere(radius = 1.0, resolution = 120)
+# obb_R_vis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+# T = np.zeros((4, 4), dtype = float)
+# T[3, 3] = 1.0
+# T[0, 0] = e_radii[0]
+# T[1, 1] = e_radii[1]
+# T[2, 2] = e_radii[2]
+# visual_mesh_rebuilt.transform(T)
+# #adding rotation
+# # theta = np.radians(90.)
+# # u = np.array([0., 0., -1.])
+# # q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+# # R = quaternion_to_matrix(q)
+# # T = np.zeros((4, 4), dtype = float)
+# T[:3, :3] = quaternion_to_matrix(obb_q) #obb_R
+# T[3, 3] = 1.0
+# visual_mesh_rebuilt.transform(T)
+# obb_R_vis.transform(T)
+# visual_mesh_rebuilt.compute_vertex_normals()
+# visual_mesh_rebuilt.compute_triangle_normals()
 # o3d.visualization.draw_geometries([visual_mesh_rebuilt, obb_R_vis])
 
 

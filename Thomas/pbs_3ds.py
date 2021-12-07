@@ -5,7 +5,8 @@ import itertools
 import taichi as ti
 import open3d as o3d
 from taichi.lang.ops import sqrt
-from ellipsoid_field import EllipsoidField
+# from ellipsoid_field import EllipsoidField
+from loader import Loader
 import utils
 
 ti.init(arch=ti.cpu)
@@ -95,28 +96,32 @@ class Simulation(object):
     # ini_mass = np.array([1.])
     # gravity = np.array([0., -9.8, 0.])
 
+
+
+
     # Initialization for PRESENTATION --------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
 
-    # DUCK:
-    with open('Meshes/duck.pkl', 'rb') as inp:
-        graph = pickle.load(inp)
+    #----------- DUCK:
+    # with open('Meshes/duck.pkl', 'rb') as inp:
+    #     graph = pickle.load(inp)
 
-    nb_of_ellipsoids = graph["centers"].shape[0]
-    nb_of_pairs = graph["connections"].shape[0]
-    height = np.array([0,8,0])
-    radii_array = graph["radii"]
-    ini_centers = graph["centers"] + height
-    ini_rotation = graph["rotations"]
-    connections = graph["connections"]
-    bodies = np.array([0 for i in range(nb_of_ellipsoids)])  # To be changed for multiple ducks
-    ini_velocities = np.zeros(ini_centers.shape)
-    ini_angular_velocities = np.zeros(ini_centers.shape)
-    # ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
-    ini_mass = np.array([10 for i in range(nb_of_ellipsoids)]) * 100
-    gravity = np.array([0., -9.8, 0.])
+    # nb_of_ellipsoids = graph["centers"].shape[0]
+    # nb_of_pairs = graph["connections"].shape[0] #582
+    # print(nb_of_pairs)
+    # height = np.array([0,8,0])
+    # radii_array = graph["radii"]
+    # ini_centers = graph["centers"] + height
+    # ini_rotation = graph["rotations"]
+    # connections = graph["connections"]
+    # bodies = np.array([0 for i in range(nb_of_ellipsoids)])  # To be changed for multiple ducks
+    # ini_velocities = np.zeros(ini_centers.shape)
+    # ini_angular_velocities = np.zeros(ini_centers.shape)
+    # # ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
+    # ini_mass = np.array([10 for i in range(nb_of_ellipsoids)]) * 100
+    # gravity = np.array([0., -9.8, 0.])
 
     '''nb_of_ellipsoids = 28
     nb_of_pairs = 72  # (nb_of_ellipsoids * (nb_of_ellipsoids - 1)) / 2
@@ -237,24 +242,43 @@ class Simulation(object):
     # ini_angular_velocities[0] = np.array([5., 0., 0.]) # For testing
     ini_mass = np.array([10., 10., 10., 10., 10., 10., 10., 10., 40., 40., 40., 40., 40., 40., 10., 10., 10., 10., 10., 10., 10., 10., 40., 40., 40., 40., 40., 40.]) * 100
     gravity = np.array([0., -9.8, 0.])'''
+
+    #-------- USING THE LAODER --------
+    loader = Loader()
+
+    #Duck 1
+    theta = np.radians(90.)
+    u = np.array([-1., 0., 0.])
+    q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+    loader.add_body('Meshes/duck_pbs.glb', 'Meshes/duck.pkl', q, np.array([0., 8., 0.]))
+
+    #Duck 2
+    theta = np.radians(90.)
+    u = np.array([1., 0., 0.])
+    q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+    loader.add_body('Meshes/duck_pbs.glb', 'Meshes/duck.pkl', q, np.array([0., 18., 0.]))
+
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
 
-    def __init__(self, res=25):
+    def __init__(self, res = 5):
         # create objects in the scene
 
-        self.ellips_field = EllipsoidField(self.radii_array,
-                                           self.ini_centers,
-                                           self.ini_rotation,
-                                           self.connections,
-                                           self.bodies,
-                                           self.ini_velocities,
-                                           self.ini_angular_velocities,
-                                           self.ini_mass,
-                                           self.gravity,
-                                           res=res,
-                                           shape=(self.nb_of_ellipsoids,))
+        # self.ellips_field = EllipsoidField(self.radii_array,
+        #                                    self.ini_centers,
+        #                                    self.ini_rotation,
+        #                                    self.connections,
+        #                                    self.bodies,
+        #                                    self.ini_velocities,
+        #                                    self.ini_angular_velocities,
+        #                                    self.ini_mass,
+        #                                    self.gravity,
+        #                                    res=res,
+        #                                    shape=(self.nb_of_ellipsoids,))
+        self.ellips_field = self.loader.generate_ellipsoids_field()
+        self.nb_of_ellipsoids = self.loader.get_nb_of_ellipsoids()
+        self.nb_of_pairs = self.loader.get_nb_of_edges() #582
 
         self.dt = 3e-3
         self.t = 0.0
