@@ -268,6 +268,8 @@ class Simulation(object):
         self.M_particles = ti.field(dtype=ti.i32, shape = ())
         self.particle_contacts = ti.Vector.field(3, dtype=ti.f32, shape=self.nb_of_pairs) #modified to get the pairs i,j of particle colliding
         self.direction_contacts = ti.Vector.field(3, dtype=ti.f32, shape=self.nb_of_pairs)
+        
+        self.mesh = o3d.io.read_triangle_mesh('../Meshes/duck_pbs.glb')
 
         self.init()
 
@@ -311,7 +313,10 @@ class Simulation(object):
             self.t,
         )
         self.update_meshes_and_lines()
-        # self.paused = True
+
+        self.skinVertices(1,self.cur_step)
+
+        self.paused = True
 
     @ti.kernel
     def advance(self, dt: ti.f32, t: ti.f32) :
@@ -332,9 +337,8 @@ class Simulation(object):
         self.epilogue(2.) #the bigger, less there is damping during collision #1.
         self.friction_ground(0.5, 0.1) # 0.5, 0.5 in 2D #4, 4 3D cube #0.01, 1
         self.friction_particles(0.5, 0.5)
-
+        
         self.ellips_field.update_new_positions()  # IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
-
 
     @ti.func
     def prologue_velocities(self):
@@ -735,10 +739,8 @@ class Simulation(object):
             self.ellips_field.set_velocity(v2,j)
             self.ellips_field.set_angular_velocity(w2, j)
 
-    @ti.func
-    def skinVertices(self,sigma):
-        mesh = o3d.io.read_triangle_mesh('../Meshes/duck_pbs.glb')
-        vertices = np.asarray(mesh.vertices)
+    def skinVertices(self,sigma,iteration):
+        vertices = np.asarray(self.mesh.vertices)
         new_vertices = []
         k_neighbors = 4
         points = []
@@ -757,7 +759,7 @@ class Simulation(object):
             weighted_rotation = 0
             weighted_translation = 0
 
-            weights = [ti.exp(-dist[i]**2/(2*sigma**2)) for i in range(len(dist))]
+            weights = [np.exp(-dist[i]**2/(2*sigma**2)) for i in range(len(dist))]
             weights_normalized = [weights[i]/weights.sum() for i in range(len(weights))]
             for i in range(len(neighbors_particles_indices)):
                 wi = weights_normalized[i]
@@ -768,10 +770,11 @@ class Simulation(object):
             
             new_vertex = weighted_rotation@new_vertex + weighted_translation
             new_vertices.append(vertex)
-        
+
         new_vertices = np.array(new_vertices)
         self.mesh.vertices = o3d.utility.Vector3dVector(new_vertices)
-        o3d.visualization.draw_geometries([mesh])
+        o3d.visualization.draw_geometries([self.mesh])
+        o3d.io.write_triangle_mesh("../Meshes/Frames/duck_frame_"+iteration+".ply", self.mesh)
 
     #@ti.func
     # def generate_collisions_particle_D(self):

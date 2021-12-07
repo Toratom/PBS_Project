@@ -26,8 +26,8 @@ class MeshGenerator(object):
         print('Loading the mesh:')
         self.mesh = o3d.io.read_triangle_mesh(mesh_path)
         # Rotating the mesh. Blender inverts y and z
-        R = self.mesh.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
-        self.mesh.rotate(R, center=(0, 0, 0))
+        #R = self.mesh.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
+        #self.mesh.rotate(R, center=(0, 0, 0))
         print(self.mesh)
         print('Vertices:')
         print(np.asarray(self.mesh.vertices))
@@ -136,7 +136,7 @@ class MeshGenerator(object):
                 continue
 
         for i in range(all_positions.__len__()):
-            self.vis_particles.append(self.f(all_radii[i], all_positions[i], all_rotations[i]))
+            self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i], all_rotations[i]))
 
         # Create connections between particles
 
@@ -244,7 +244,7 @@ class MeshGenerator(object):
     def export_particle_graph(self, name):
         if self.graph.keys().__len__() == 0:
             self.create_graph()
-        with open('../Meshes/' + name + '.pkl', 'wb') as out:
+        with open('Meshes/' + name + '.pkl', 'wb') as out:
             pickle.dump(self.graph, out, pickle.HIGHEST_PROTOCOL)
 
     def matrix_to_quaternion(self, M):
@@ -282,7 +282,7 @@ def main():
                               6)  # 150, 0.45 Candidate radius, Candidate particle centers
     # generator.visualize_mesh()
     generator.create_graph()
-    generator.export_particle_graph('duck2')
+    generator.export_particle_graph('duck')
     generator.visualize_graph()
 
 
