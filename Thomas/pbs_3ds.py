@@ -7,6 +7,7 @@ import open3d as o3d
 from taichi.lang.ops import sqrt
 from ellipsoid_field import EllipsoidField
 import utils
+from sklearn.neighbors import KDTree
 
 ti.init(arch=ti.cpu)
 
@@ -532,8 +533,15 @@ class Simulation(object):
             n = self.direction_contacts[i]
             pi = self.ellips_field.get_p(idxi)
             pj = self.ellips_field.get_p(idxj)
-            pi = pi - (d/2) * n
-            pj = pj + (d/2) * n
+            #the smallest particles is more pushed
+            #if mi > mj, wj > wi because pj moves more than the bigger particle 
+            mi = self.ellips_field.get_mass(idxi)
+            mj = self.ellips_field.get_mass(idxj)
+            wi = np.exp(-mi**2)/(np.exp(-mi**2) + np.exp(-mj**2))
+            # pi = pi - (d/2) * n 
+            # pj = pj + (d/2) * n 
+            pi = pi - d * n * wi
+            pj = pj + d * n * (1-wi)
             self.ellips_field.set_p(pi, idxi)
             self.ellips_field.set_p(pj, idxj)
 
@@ -726,6 +734,43 @@ class Simulation(object):
             self.ellips_field.set_velocity(v2,j)
             self.ellips_field.set_angular_velocity(w2, j)
 
+    @ti.func
+    def skinVertices(self,sigma):
+        mesh = o3d.io.read_triangle_mesh('../Meshes/duck_pbs.glb')
+        vertices = np.asarray(mesh.vertices)
+        new_vertices = []
+        k_neighbors = 4
+        points = []
+        for i in range (self.nb_of_ellipsoids):
+            points.append(self.ellips_field.get_rest_x(i))
+
+        support_structure = o3d.geometry.PointCloud()
+        
+        support_structure.points = o3d.utility.Vector3dVector(points)
+        support_tree = KDTree(points)
+
+        for i in range(vertices.shape[0]):
+            vertex = vertices[i]
+            dist, neighbors_particles_indices = support_tree.query(vertex, k=k_neighbors) 
+            new_vertex = vertex.copy()
+            weighted_rotation = 0
+            weighted_translation = 0
+
+            weights = [np.exp(-dist[i]**2/(2*sigma**2)) for i in range(len(dist))]
+            weights_normalized = [weights[i]/weights.sum() for i in range(len(weights))]
+            for i in range(len(neighbors_particles_indices)):
+                wi = weights_normalized[i]
+                index = neighbors_particles_indices[i]
+
+                weighted_rotation += wi*self.ellips_field.get_rotation_matrix(index)@self.ellips_field.get_rest_rotation_matrix(index).transpose()
+                weighted_translation += wi*(self.ellips_field.get_x(index) - self.ellips_field.get_rest_x(index))
+            
+            new_vertex = weighted_rotation@new_vertex + weighted_translation
+            new_vertices.append(vertex)
+        
+        new_vertices = np.array(new_vertices)
+        self.mesh.vertices = o3d.utility.Vector3dVector(new_vertices)
+        o3d.visualization.draw_geometries([mesh])
 
     #@ti.func
     # def generate_collisions_particle_D(self):

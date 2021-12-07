@@ -122,7 +122,7 @@ class MeshGenerator(object):
                 continue
 
         for i in range(all_positions.__len__()):
-            self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i], all_rotations[i]))
+            self.vis_particles.append(self.f(all_radii[i], all_positions[i], all_rotations[i]))
 
         # Create connections between particles
 
