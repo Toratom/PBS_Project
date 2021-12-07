@@ -82,7 +82,7 @@ class MeshGenerator(object):
             computed_distance = self.find_overlapping(point, self.distance, len(all_positions),
                                                       all_radii, all_positions)
             print("computed distance : ", computed_distance)
-            neighbors = support_tree.query_radius(point.reshape(1, -1), computed_distance)  # distance chosen by artist
+            neighbors = support_tree.query_radius(point.reshape(1, -1), computed_distance)
 
             # From the indexes, recover the points
             #print(neighbors[0])
@@ -98,40 +98,38 @@ class MeshGenerator(object):
                 print("Point - step 1")
 
                 print("temp len : ", len(temp))
-                if len(temp) < 2 :
-                    raise RuntimeError()
+                # if len(temp) < 2 :
+                #     raise RuntimeError()
                 temp = o3d.utility.Vector3dVector(np.array(temp))
                 print("Point - step 2 - temp done")
 
                 obb = o3d.geometry.OrientedBoundingBox.create_from_points(points=temp)
                 print("Point - step 3 - obb done")
 
-                e_radii = np.array([obb.extent[0] / 2, obb.extent[1] / 2, obb.extent[2] / 2])
+                a = min(max(obb.extent[0] / 2, 0.1), computed_distance)
+                b = min(max(obb.extent[1] / 2, 0.1), computed_distance)
+                c = min(max(obb.extent[2] / 2, 0.1), computed_distance)
+                e_radii = np.array([a, b, c])
 
-                print("e_radii : ", e_radii)
-
-                if np.max(e_radii) > 0.15:  # too small particle. Here, I am avoiding the inference of small spheres
-                    print("Point - step 4 - radi > 0.15")
-
+                if np.max(e_radii) > 0.15:  # not too small particle. Here, I am avoiding the inference of small spheres
                     # Creation of ellipsoid
                     e_center = obb.center
-                    all_positions.append((e_center))
                     e_rotation = obb.R
-                    all_quaternions.append((self.matrix_to_quaternion(e_rotation))) # Our solver works on quaternions
+                    all_positions.append(e_center)
+                    all_quaternions.append((self.matrix_to_quaternion(e_rotation)))  # Our solver works on quaternions
                     all_rotations.append(e_rotation)
-                    e_radii = np.array([obb.extent[0] / 2, obb.extent[1] / 2, obb.extent[2] / 2])
-                    all_radii.append((e_radii))
-                    all_radii.append((e_radii))
+                    all_radii.append(e_radii)
 
                     # Coloring points
                     for ind in neighbors[0]:
-                        colored.append((ind))
+                        if not colored.__contains__(ind):
+                            colored.append((ind))
 
                     # Coloring the center
                     center_index = np.where(np.all(centers == point, axis=1))
                     colored.append(center_index[0][0])
 
-            except RuntimeError as e:  # faces may be coplanar. Need to retry
+            except :  # faces may be coplanar. Need to retry
                 print("ERROR")
                 continue
         
@@ -168,7 +166,7 @@ class MeshGenerator(object):
         # self.visualize_graph()
         return
 
-    def find_overlapping(self, pos1, r1, nb_of_ellipsoids, radii, positions, separation=0):
+    def find_overlapping(self, pos1, r1, nb_of_ellipsoids, radii, positions, separation=0.001):
         for j in range(nb_of_ellipsoids):
 
             radii2 = radii[j]
@@ -179,7 +177,8 @@ class MeshGenerator(object):
             distance = np.linalg.norm(distance_vector)
 
             if distance < (r1 + r2):  # possible overlapping
-                r1 = r1 - distance - separation
+                distance = r1 + r2 - distance
+                r1 = max(r1 - distance - separation, 0)
 
         return r1
 
@@ -276,8 +275,9 @@ class MeshGenerator(object):
 
         return q
 def main():
-    generator = MeshGenerator("Meshes/duck_pbs.glb", 0.35, 10000,
-                              6)  # 150, 0.45 Candidate radius, Candidate particle centers ../Meshes/duck_pbs.glb"
+    generator = MeshGenerator("Meshes/duck_pbs.glb", 0.7, 200,#0.35, 10000,
+                              6)  # 150, 0.45 Candidate radius, Candidate particle centers
+    # generator.visualize_mesh()
     generator.create_graph()
     generator.export_particle_graph('duck2')
     generator.visualize_graph()
