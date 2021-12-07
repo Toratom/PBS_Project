@@ -256,10 +256,10 @@ class MeshGenerator(object):
 
         return q
 def main():
-    generator = MeshGenerator("../Meshes/duck_pbs.glb", 0.35, 10000,
+    generator = MeshGenerator("Meshes/duck_pbs.glb", 0.35, 10000,
                               6)  # 150, 0.45 Candidate radius, Candidate particle centers
     generator.create_graph()
-    generator.export_particle_graph('duck')
+    generator.export_particle_graph('duck2')
     generator.visualize_graph()
 
 
