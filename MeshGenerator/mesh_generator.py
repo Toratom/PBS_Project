@@ -25,6 +25,9 @@ class MeshGenerator(object):
         # Code adapted from Open3D tutorial
         print('Loading the mesh:')
         self.mesh = o3d.io.read_triangle_mesh(mesh_path)
+        # Rotating the mesh. Blender inverts y and z
+        R = self.mesh.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
+        self.mesh.rotate(R, center=(0, 0, 0))
         print(self.mesh)
         print('Vertices:')
         print(np.asarray(self.mesh.vertices))
@@ -95,24 +98,35 @@ class MeshGenerator(object):
 
                 obb = o3d.geometry.OrientedBoundingBox.create_from_points(points=temp)
 
-                a = min(max(obb.extent[0] / 2, 0.1), computed_distance)
-                b = min(max(obb.extent[1] / 2, 0.1), computed_distance)
-                c = min(max(obb.extent[2] / 2, 0.1), computed_distance)
-                e_radii = np.array([a, b, c])
+                # We put the radiis back in our coordinate system
+                big_r = min(max(obb.extent[0] / 2, 0.1), computed_distance)
+                middle_r = min(max(obb.extent[1] / 2, 0.1), computed_distance)
+                small_r = min(max(obb.extent[2] / 2, 0.1), computed_distance)
+
+                e_radii = np.array([big_r, small_r, middle_r])
 
                 if np.max(e_radii) > 0.15:  # not too small particle. Here, I am avoiding the inference of small spheres
                     # Creation of ellipsoid
                     e_center = obb.center
-                    e_rotation = obb.R
+                    obb_R = np.zeros((3, 3))
+                    obb_R[:, 0] = obb.R[:, 0]
+                    obb_R[:, 1] = obb.R[:, 2]
+                    obb_R[:, 2] = obb.R[:, 1]
+
+                    if np.linalg.det(obb_R) < 0: # avoid improper rotations
+                        e_rotation = - obb_R
+                    else:
+                        e_rotation = obb_R
+
                     all_positions.append(e_center)
-                    all_quaternions.append((self.matrix_to_quaternion(e_rotation)))  # Our solver works on quaternions
+                    all_quaternions.append(self.matrix_to_quaternion(e_rotation))  # Our solver works on quaternions
                     all_rotations.append(e_rotation)
                     all_radii.append(e_radii)
 
                     # Coloring points
                     for ind in neighbors[0]:
                         if not colored.__contains__(ind):
-                            colored.append((ind))
+                            colored.append(ind)
 
                     # Coloring the center
                     center_index = np.where(np.all(centers == point, axis=1))
@@ -122,8 +136,9 @@ class MeshGenerator(object):
                 continue
 
         for i in range(all_positions.__len__()):
-            self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i], all_rotations[i]))
-
+            # self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i], all_rotations[i]))
+            self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i],
+                                                                 all_rotations[i]))
         # Create connections between particles
 
         # Another KDTree to simplify queries
@@ -149,6 +164,8 @@ class MeshGenerator(object):
         self.graph["radii"] = np.array(all_radii)
         self.graph["rotations"] = np.array(all_quaternions)
         self.graph["connections"] = np.array(all_connections)
+
+        print(all_quaternions.__len__(), all_rotations.__len__())
         # self.visualize_graph()
         return
 
@@ -212,14 +229,17 @@ class MeshGenerator(object):
         rot = np.identity(4, dtype=float)
         rot[:3, :3] = rotation
 
-        T = rot @ scale
-
-        mesh.transform(T)
+        # T = rot @ scale
+        mesh.transform(scale)
+        mesh.rotate(rotation)
+        # mesh.transform(T)
         mesh.translate(translation)
 
         mesh.compute_vertex_normals()
         mesh.compute_triangle_normals()
 
+        if np.linalg.det(rotation) < 0:
+            mesh.paint_uniform_color([1., 0., 0.])
         return mesh
 
     def export_particle_graph(self, name):
@@ -258,9 +278,31 @@ class MeshGenerator(object):
             q[2] = 0.25 * S
 
         return q
-def main():
-    generator = MeshGenerator("../Meshes/duck_pbs.glb", 0.7, 200,#0.35, 10000,
-                              6)  # 150, 0.45 Candidate radius, Candidate particle centers
+
+    def quaternion_to_matrix(self, q):
+        # First row of the rotation matrix
+        r00 = 2 * (q[3] * q[3] + q[0] * q[0]) - 1
+        r01 = 2 * (q[0] * q[1] - q[3] * q[2])
+        r02 = 2 * (q[0] * q[2] + q[3] * q[1])
+
+        # Second row of the rotation matrix
+        r10 = 2 * (q[0] * q[1] + q[3] * q[2])
+        r11 = 2 * (q[3] * q[3] + q[1] * q[1]) - 1
+        r12 = 2 * (q[1] * q[2] - q[3] * q[0])
+
+        # Third row of the rotation matrix
+        r20 = 2 * (q[0] * q[2] - q[3] * q[1])
+        r21 = 2 * (q[1] * q[2] + q[3] * q[0])
+        r22 = 2 * (q[3] * q[3] + q[2] * q[2]) - 1
+
+        # 3x3 rotation matrix
+        rot_matrix = np.array([[r00, r01, r02], [r10, r11, r12], [r20, r21, r22]])
+        return rot_matrix
+
+
+def main():  # TODO: add arguments to main
+    generator = MeshGenerator("../Meshes/duck_pbs.glb", 0.65, 150,  # 0.35, 10000,
+                              6) # 150, 0.45 Candidate radius, Candidate particle centers
     # generator.visualize_mesh()
     generator.create_graph()
     generator.export_particle_graph('duck')

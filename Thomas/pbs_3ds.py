@@ -241,7 +241,7 @@ class Simulation(object):
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
 
-    def __init__(self, res=25):
+    def __init__(self, res=10):
         # create objects in the scene
 
         self.ellips_field = EllipsoidField(self.radii_array,
