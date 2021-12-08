@@ -3,10 +3,7 @@ import sys
 
 import open3d as o3d
 import numpy as np
-from scipy.spatial.distance import pdist
 from sklearn.neighbors import KDTree
-import math
-import itertools
 
 
 class MeshGenerator(object):
