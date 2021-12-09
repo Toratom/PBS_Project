@@ -3,10 +3,9 @@ import sys
 
 import open3d as o3d
 import numpy as np
-from scipy.spatial.distance import pdist
 from sklearn.neighbors import KDTree
-import math
-import itertools
+# import math
+# import itertools
 
 
 class MeshGenerator(object):
@@ -27,9 +26,15 @@ class MeshGenerator(object):
         # Code adapted from Open3D tutorial
         print('Loading the mesh:')
         self.mesh = o3d.io.read_triangle_mesh(mesh_path)
+        #No longer needed with the loader :
         # Rotating the mesh. Blender inverts y and z
+<<<<<<< HEAD
         #R = self.mesh.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
         #self.mesh.rotate(R, center=(0, 0, 0))
+=======
+        # R = self.mesh.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
+        # self.mesh.rotate(R, center=(0, 0, 0))
+>>>>>>> d4efd13c1d00f305cc33a47c999cdd2f220e1939
         print(self.mesh)
         print('Vertices:')
         print(np.asarray(self.mesh.vertices))
@@ -80,7 +85,6 @@ class MeshGenerator(object):
         all_connections = []
 
         for point in centers:
-
             # Find nearest vertices inside the cloud
             computed_distance = self.find_overlapping(point, self.distance, len(all_positions),
                                                       all_radii, all_positions)
@@ -97,7 +101,6 @@ class MeshGenerator(object):
             # Creating OBB, when possible
             try:
                 temp = o3d.utility.Vector3dVector(np.array(temp))
-
                 obb = o3d.geometry.OrientedBoundingBox.create_from_points(points=temp)
 
                 # We put the radiis back in our coordinate system
@@ -134,13 +137,13 @@ class MeshGenerator(object):
                     center_index = np.where(np.all(centers == point, axis=1))
                     colored.append(center_index[0][0])
 
-            except RuntimeError as e:  # faces may be coplanar. Need to retry
+            except :  # faces may be coplanar. Need to retry
                 continue
 
         for i in range(all_positions.__len__()):
             # self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i], all_rotations[i]))
             self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i],
-                                                                 all_rotations[i]))
+                                                                 all_rotations[i], visualize_orientation = False))
         # Create connections between particles
 
         # Another KDTree to simplify queries
@@ -217,7 +220,7 @@ class MeshGenerator(object):
         geometries.append(connections)
         o3d.visualization.draw_geometries(geometries)
 
-    def create_ellipsoid_mesh(self, radii, translation, rotation):
+    def create_ellipsoid_mesh(self, radii, translation, rotation, visualize_orientation = False):
         mesh = o3d.geometry.TriangleMesh.create_sphere(radius=1.0, resolution=120)
 
         scale = np.identity(4, dtype=float)
@@ -239,8 +242,23 @@ class MeshGenerator(object):
         # mesh.transform(T)
         mesh.translate(translation)
 
+        mesh.paint_uniform_color([0., 0., 1.])
         mesh.compute_vertex_normals()
         mesh.compute_triangle_normals()
+
+        if (visualize_orientation) :
+            #Y the green axis should be the normal direction
+            axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+            # scale = np.identity(4, dtype=float)
+            # scale[3, 3] = 1.0
+            # scale[0, 0] = 2 * max(radii[0], 0.1)
+            # scale[1, 1] = 2 * max(radii[1], 0.1)
+            # scale[2, 2] = 2 * max(radii[2], 0.1)
+            # axis.transform(scale)
+            axis.rotate(rotation)
+            axis.translate(translation)
+
+            mesh = mesh + axis
 
         if np.linalg.det(rotation) < 0:
             mesh.paint_uniform_color([1., 0., 0.])
