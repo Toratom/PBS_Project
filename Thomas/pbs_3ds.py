@@ -254,10 +254,10 @@ class Simulation(object):
     loader.add_body('Meshes/duck_pbs.glb', 'Meshes/davide_test.pkl', q, np.array([0., 8., 0.]))
 
     #Duck 2
-    theta = np.radians(90.)#np.radians(90.)
-    u = np.array([1., 0., 0.])
-    q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
-    loader.add_body('Meshes/duck_pbs.glb', 'Meshes/davide_test.pkl', q, np.array([0., 18., 0.]))
+    # theta = np.radians(90.)#np.radians(90.)
+    # u = np.array([1., 0., 0.])
+    # q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+    # loader.add_body('Meshes/duck_pbs.glb', 'Meshes/davide_test.pkl', q, np.array([0., 18., 0.]))
 
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
@@ -322,8 +322,7 @@ class Simulation(object):
         self.update_meshes_and_lines()
 
     def step(self):
-        if self.paused:
-            return
+
         self.t += self.dt
         self.cur_step += 1
         self.advance(
@@ -331,8 +330,6 @@ class Simulation(object):
             self.t,
         )
         self.update_meshes_and_lines()
-
-        self.paused = True
 
     @ti.kernel
     def advance(self, dt: ti.f32, t: ti.f32) :
@@ -800,6 +797,39 @@ class Simulation(object):
     #     radius = (x_loc).norm()
     #     return radius
 
+def skinVertices(sim):
+
+    for i in range(sim.loader.get_nb_of_bodies()):
+        
+        new_vertices = []
+        for j in range(sim.loader.get_body_nb_of_vertex(i)):
+
+            list_id, list_weights, vertex = sim.loader.get_hyper_weights(i, j)
+            
+            new_vertex = np.array([0.,0.,0.])
+
+            for k in range(len(list_id)):
+                weight_k = list_weights[k]
+                id_ellipse = list_id[k]
+                vertex_local = vertex[k]
+                
+                rotation = sim.ellips_field.rot[id_ellipse].to_numpy()
+                translation = sim.ellips_field.x[id_ellipse].to_numpy()
+                print(translation,vertex_local)
+                new_vertex += weight_k*(rotation@vertex_local + translation)
+
+            new_vertices.append(new_vertex)
+
+        mesh = sim.loader.vis_meshes_list[i]
+        mesh.vertices = o3d.utility.Vector3dVector(new_vertices)
+    
+        axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+        o3d.visualization.draw_geometries([mesh, axis])
+        #o3d.visualization.draw_geometries([mesh])
+        #o3d.io.write_triangle_mesh("Meshes/Frames/frame_"+str(sim.cur_step)+"_body_"+str(i)+".ply", mesh)
+        print("done for frame "+str(sim.cur_step)+", body "+str(i))
+        #print(new_vertices[0])
+
 
 def main():
     sim = Simulation()
@@ -865,11 +895,17 @@ def main():
     # print(vis.get_render_option().line_width)
 
     while True:
-        sim.step()
+        if not sim.paused :
+            sim.step()
 
         #Skinning is done outside taichi scope so here :
         #TO DO
         #print(sim.loader.get_hyper_weights(0, 0))
+            skinVertices(sim)
+
+            #sim.paused = True
+
+
 
         # Update of meshes and then of lines
         for mesh in sim.ellips_field.meshes.ravel():
