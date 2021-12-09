@@ -14,10 +14,6 @@ class Loader(object) :
     vis_meshes_list = []
     skinning_weights_list = []
 
-    # vis_rotations_list = []
-    # vis_center_list = []
-    # bodies_offset = []
-
     nb_of_bodies = 0
     bodies_nb_of_vertexes_list = [] # [nb_of_bodies]
 
@@ -32,11 +28,12 @@ class Loader(object) :
     masses_list = [] #list of float
     nb_of_ellipsoids = 0
     
-    def __init__(self, do_skinning = False) :
+    def __init__(self, do_skinning = False, res = 5) :
         '''
         Put do_skinning to true if skinning
         '''
         self.do_skinning = do_skinning
+        self.res = res
 
     def add_body(self, path_to_vis_mesh, path_to_graph, init_q, init_t, nb_of_influencing_particles = 4, sig = 1.) :
         '''
@@ -72,7 +69,6 @@ class Loader(object) :
 
         connections = graph["connections"]
         #Needs to take into account the new index
-        #self.bodies_offset.append(self.nb_of_ellipsoids)
         connections = connections + np.array([self.nb_of_ellipsoids, self.nb_of_ellipsoids])
         self.connections_list.extend(connections.tolist())
 
@@ -138,8 +134,9 @@ class Loader(object) :
         ini_angular_velocities = np.zeros((self.nb_of_ellipsoids, 3))
         ini_mass = 10. * np.ones(self.nb_of_ellipsoids, dtype = float)
         gravity = np.array([0., -9.8, 0.])
-        res = 5
+        res = self.res
         shape = (self.nb_of_ellipsoids,)
+
         return EllipsoidField(radii_array, ini_centers, ini_rotation, connections, bodies, ini_velocities, ini_angular_velocities, ini_mass, gravity, res, shape)
 
 
