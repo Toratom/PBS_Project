@@ -118,8 +118,8 @@ class Loader(object) :
             
             self.skinning_weights_list.append(vertexes_weights)
             self.vis_meshes_list.append(mesh)
+            self.bodies_nb_of_vertexes_list.append(nb_of_vertexes)
         
-        self.bodies_nb_of_vertexes_list.append(nb_of_vertexes)
         self.nb_of_ellipsoids += curr_nb_of_ellipsoids
         self.nb_of_bodies += 1
 

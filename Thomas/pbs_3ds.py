@@ -245,7 +245,7 @@ class Simulation(object):
     gravity = np.array([0., -9.8, 0.])'''
 
     #-------- USING THE LAODER --------
-    loader = Loader(True)
+    loader = Loader(False)
 
     #Duck 1
     theta = np.radians(90.)
@@ -331,8 +331,7 @@ class Simulation(object):
             self.t,
         )
         self.update_meshes_and_lines()
-
-        self.paused = True
+        #self.paused = True
 
     @ti.kernel
     def advance(self, dt: ti.f32, t: ti.f32) :
@@ -870,6 +869,7 @@ def main():
         #Skinning is done outside taichi scope so here :
         #TO DO
         #print(sim.loader.get_hyper_weights(0, 0))
+        #print(sim.ellips_field.rot[0].to_numpy())
 
         # Update of meshes and then of lines
         for mesh in sim.ellips_field.meshes.ravel():
