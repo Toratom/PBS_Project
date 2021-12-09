@@ -28,8 +28,13 @@ class MeshGenerator(object):
         self.mesh = o3d.io.read_triangle_mesh(mesh_path)
         #No longer needed with the loader :
         # Rotating the mesh. Blender inverts y and z
+<<<<<<< HEAD
+        #R = self.mesh.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
+        #self.mesh.rotate(R, center=(0, 0, 0))
+=======
         # R = self.mesh.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
         # self.mesh.rotate(R, center=(0, 0, 0))
+>>>>>>> d4efd13c1d00f305cc33a47c999cdd2f220e1939
         print(self.mesh)
         print('Vertices:')
         print(np.asarray(self.mesh.vertices))

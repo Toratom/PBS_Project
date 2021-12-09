@@ -331,7 +331,8 @@ class Simulation(object):
             self.t,
         )
         self.update_meshes_and_lines()
-        # self.paused = True
+
+        self.paused = True
 
     @ti.kernel
     def advance(self, dt: ti.f32, t: ti.f32) :
@@ -354,7 +355,6 @@ class Simulation(object):
         self.friction_particles(1., 1.)
 
         self.ellips_field.update_new_positions()  # IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
-
 
     @ti.func
     def prologue_velocities(self):
@@ -755,44 +755,6 @@ class Simulation(object):
             self.ellips_field.set_velocity(v2,j)
             self.ellips_field.set_angular_velocity(w2, j)
 
-    @ti.func
-    def skinVertices(self,sigma):
-        mesh = o3d.io.read_triangle_mesh('../Meshes/duck_pbs.glb')
-        vertices = np.asarray(mesh.vertices)
-        new_vertices = []
-        k_neighbors = 4
-        points = []
-        for i in range (self.nb_of_ellipsoids):
-            points.append(self.ellips_field.get_rest_x(i))
-
-        support_structure = o3d.geometry.PointCloud()
-        
-        support_structure.points = o3d.utility.Vector3dVector(points)
-        support_tree = KDTree(points)
-
-        for i in range(vertices.shape[0]):
-            vertex = vertices[i]
-            dist, neighbors_particles_indices = support_tree.query(vertex, k=k_neighbors) 
-            new_vertex = vertex.copy()
-            weighted_rotation = 0
-            weighted_translation = 0
-
-            weights = [ti.exp(-dist[i]**2/(2*sigma**2)) for i in range(len(dist))]
-            weights_normalized = [weights[i]/weights.sum() for i in range(len(weights))]
-            for i in range(len(neighbors_particles_indices)):
-                wi = weights_normalized[i]
-                index = neighbors_particles_indices[i]
-
-                weighted_rotation += wi*self.ellips_field.get_rotation_matrix(index)@self.ellips_field.get_rest_rotation_matrix(index).transpose()
-                weighted_translation += wi*(self.ellips_field.get_x(index) - self.ellips_field.get_rest_x(index))
-            
-            new_vertex = weighted_rotation@new_vertex + weighted_translation
-            new_vertices.append(vertex)
-        
-        new_vertices = np.array(new_vertices)
-        self.mesh.vertices = o3d.utility.Vector3dVector(new_vertices)
-        o3d.visualization.draw_geometries([mesh])
-
     #@ti.func
     # def generate_collisions_particle_D(self):
     #     k = 0
@@ -918,6 +880,58 @@ def main():
             break
         vis.update_renderer()
 
+
+def skinVertices(sigma,iteration,ellips_field):
+
+    new_meshes_to_visualize = []
+
+    for index_body in range(len(ellips_field.bodies)):
+        bodies_indexes = ellips_field.get_body_indexes(index_body)
+        idx_last_ellips_body = bodies_indexes[1]
+        idx_first_ellips_body = bodies_indexes[0]
+
+        ellipsoids = []
+        for i in range(idx_first_ellips_body, idx_last_ellips_body):
+            ellipsoids.append(ellips_field.get_rest_x(i))
+
+        body_number = ellips_field.bodies[index_body]
+        mesh = ellips_field.mesh[body_number]
+        vertices = np.asarray(mesh.vertices) 
+        new_vertices = []
+
+        #get ellipsoid neighbors of each vertex and the weighted transformation matrix
+        k_neighbors = 4
+        support_structure = o3d.geometry.PointCloud()
+        
+        support_structure.points = o3d.utility.Vector3dVector(ellipsoids)
+        support_tree = KDTree(ellipsoids)
+
+        for index_vertex in range(vertices.shape[0]):
+            vertex = vertices[index_vertex]
+            dist, neighbors_particles_indices = support_tree.query(vertex, k=k_neighbors) 
+            new_vertex = vertex.copy()
+            weighted_rotation = 0
+            weighted_translation = 0
+
+            weights = [np.exp(-dist[i]**2/(2*sigma**2)) for i in range(len(dist))]
+            weights_normalized = [weights[i]/weights.sum() for i in range(len(weights))]
+            for i in range(len(neighbors_particles_indices)):
+                wi = weights_normalized[i]
+                index = neighbors_particles_indices[i]
+
+                weighted_rotation += wi*ellips_field.get_rotation_matrix(index)@ellips_field.get_rest_rotation_matrix(index).transpose()
+                weighted_translation += wi*(ellips_field.get_x(index) - ellips_field.get_rest_x(index))
+            
+            new_vertex = weighted_rotation@new_vertex + weighted_translation
+            new_vertices.append(vertex)
+
+        new_vertices = np.array(new_vertices)
+        mesh.vertices = o3d.utility.Vector3dVector(new_vertices)
+        new_meshes_to_visualize.append(mesh)
+
+    o3d.visualization.draw_geometries(new_meshes_to_visualize)
+    for i in range(len(new_meshes_to_visualize)):
+        o3d.io.write_triangle_mesh("../Meshes/Frames/duck_frame_"+iteration+"_mesh_"+i+".ply", new_meshes_to_visualize[i])
 
 if __name__ == "__main__":
     main()
