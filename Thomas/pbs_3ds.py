@@ -245,19 +245,19 @@ class Simulation(object):
     gravity = np.array([0., -9.8, 0.])'''
 
     #-------- USING THE LAODER --------
-    loader = Loader()
+    loader = Loader(True)
 
     #Duck 1
     theta = np.radians(90.)
     u = np.array([-1., 0., 0.])
     q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
-    loader.add_body('../Meshes/duck_pbs.glb', '../Meshes/davide_test.pkl', q, np.array([0., 8., 0.]))
+    loader.add_body('Meshes/duck_pbs.glb', 'Meshes/davide_test.pkl', q, np.array([0., 8., 0.]))
 
     #Duck 2
-    theta = np.radians(0.)#np.radians(90.)
+    theta = np.radians(90.)#np.radians(90.)
     u = np.array([1., 0., 0.])
     q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
-    loader.add_body('../Meshes/duck_pbs.glb', '../Meshes/davide_test.pkl', q, np.array([0., 18., 0.]))
+    loader.add_body('Meshes/duck_pbs.glb', 'Meshes/davide_test.pkl', q, np.array([0., 18., 0.]))
 
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
@@ -351,7 +351,7 @@ class Simulation(object):
         self.project_shape_matching_constr(0.01) # 0.35 (stiff), 0.01 soft
         self.epilogue(2.) #the bigger, less there is damping during collision #1.
         self.friction_ground(0.5, 0.1) # 0.5, 0.5 in 2D #4, 4 3D cube #0.01, 1
-        self.friction_particles(1, 1)
+        self.friction_particles(1., 1.)
 
         self.ellips_field.update_new_positions()  # IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
 
@@ -904,6 +904,10 @@ def main():
 
     while True:
         sim.step()
+
+        #Skinning is done outside taichi scope so here :
+        #TO DO
+        #print(sim.loader.get_hyper_weights(0, 0))
 
         # Update of meshes and then of lines
         for mesh in sim.ellips_field.meshes.ravel():

@@ -2,7 +2,11 @@ import open3d as o3d
 import numpy as np
 import random
 
-o3d.utility.Vector3dVector(np.array([]))
+x = np.array([1., 0., 1.])
+w = np.exp(-x * x / (2 * 1.))
+w /= w.sum()
+print(w)
+print(x.reshape((1, -1)))
 
 # a = np.array([])
 # try :
