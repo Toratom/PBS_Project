@@ -43,6 +43,9 @@ class Loader(object) :
         ini_q and ini_t are the solid transformation to initialize the position of the mesh in the world
         init_q is a quaternion describing the rotation np.array([x, y, z, w])
         init_t is a translation np.array([x, y, z])
+        if skinning on :
+            nb_of_influencing_particles : each vertex position is influenced by nb_of_influencing_particles
+            sig  : the sig used in the gaussian kernel to go from distances to weights
         '''
 
         with open(path_to_graph, 'rb') as inp:
@@ -54,14 +57,14 @@ class Loader(object) :
         radii_array = graph["radii"]
         self.radii_list.extend(radii_array.tolist())
 
-        ini_centers = graph["centers"]
+        ini_centers = graph["centers"].copy()
         #Takes into account init_t (and init_q)
         R = self.quaternion_to_matrix(init_q)
         for i in range(curr_nb_of_ellipsoids) :
             ini_centers[i] = np.dot(R, ini_centers[i]) + init_t
         self.centers_list.extend(ini_centers.tolist())
 
-        ini_rotation = graph["rotations"]
+        ini_rotation = graph["rotations"].copy()
         #Takes into account init_q
         for i in range(curr_nb_of_ellipsoids) :
             ini_rotation[i] = self.quaternion_multiply(init_q, ini_rotation[i])
