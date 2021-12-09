@@ -9,6 +9,7 @@ from taichi.lang.ops import sqrt
 from loader import Loader
 import utils
 from sklearn.neighbors import KDTree
+from tqdm import tqdm
 
 ti.init(arch=ti.cpu)
 
@@ -241,20 +242,20 @@ class Simulation(object):
     ini_mass = np.array([10., 10., 10., 10., 10., 10., 10., 10., 40., 40., 40., 40., 40., 40., 10., 10., 10., 10., 10., 10., 10., 10., 40., 40., 40., 40., 40., 40.]) * 100
     gravity = np.array([0., -9.8, 0.])'''
 
-    # -------- USING THE LAODER --------
-    loader = Loader()
+    #-------- USING THE LAODER --------
+    loader = Loader(True)
 
     # Duck 1
     theta = np.radians(90.)
     u = np.array([-1., 0., 0.])
-    q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta / 2.)])
-    loader.add_body('../Meshes/duck_pbs.glb', '../Meshes/davide_test.pkl', q, np.array([0., 8., 0.]))
+    q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+    loader.add_body('Meshes/duck_pbs.glb', 'Meshes/davide_test.pkl', q, np.array([0., 8., 0.]))
 
-    # Duck 2
-    theta = np.radians(0.)  # np.radians(90.)
-    u = np.array([1., 0., 0.])
-    q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta / 2.)])
-    loader.add_body('../Meshes/duck_pbs.glb', '../Meshes/davide_test.pkl', q, np.array([0., 18., 0.]))
+    #Duck 2
+    # theta = np.radians(90.)#np.radians(90.)
+    # u = np.array([1., 0., 0.])
+    # q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+    # loader.add_body('Meshes/duck_pbs.glb', 'Meshes/davide_test.pkl', q, np.array([0., 18., 0.]))
 
     # ----------------------------------------------------------------------------------------------
     # ----------------------------------------------------------------------------------------------
@@ -320,8 +321,7 @@ class Simulation(object):
         self.update_meshes_and_lines()
 
     def step(self):
-        if self.paused:
-            return
+
         self.t += self.dt
         self.cur_step += 1
         self.advance(
@@ -329,7 +329,6 @@ class Simulation(object):
             self.t,
         )
         self.update_meshes_and_lines()
-        # self.paused = True
 
     @ti.kernel
     def advance(self, dt: ti.f32, t: ti.f32):
@@ -346,10 +345,10 @@ class Simulation(object):
         self.solve_collisions_particles()
         self.solve_collisions_ground()
         # self.project_distance_constr(1.)
-        self.project_shape_matching_constr(0.01)  # 0.35 (stiff), 0.01 soft
-        self.epilogue(2.)  # the bigger, less there is damping during collision #1.
-        self.friction_ground(0.5, 0.1)  # 0.5, 0.5 in 2D #4, 4 3D cube #0.01, 1
-        self.friction_particles(1, 1)
+        self.project_shape_matching_constr(0.01) # 0.35 (stiff), 0.01 soft
+        self.epilogue(2.) #the bigger, less there is damping during collision #1.
+        self.friction_ground(0.5, 0.1) # 0.5, 0.5 in 2D #4, 4 3D cube #0.01, 1
+        self.friction_particles(1., 1.)
 
         self.ellips_field.update_new_positions()  # IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
 
@@ -788,46 +787,7 @@ class Simulation(object):
             self.ellips_field.set_velocity(v2, j)
             self.ellips_field.set_angular_velocity(w2, j)
 
-    @ti.func
-    def skinVertices(self, sigma):
-        mesh = o3d.io.read_triangle_mesh('../Meshes/duck_pbs.glb')
-        vertices = np.asarray(mesh.vertices)
-        new_vertices = []
-        k_neighbors = 4
-        points = []
-        for i in range(self.nb_of_ellipsoids):
-            points.append(self.ellips_field.get_rest_x(i))
-
-        support_structure = o3d.geometry.PointCloud()
-
-        support_structure.points = o3d.utility.Vector3dVector(points)
-        support_tree = KDTree(points)
-
-        for i in range(vertices.shape[0]):
-            vertex = vertices[i]
-            dist, neighbors_particles_indices = support_tree.query(vertex, k=k_neighbors)
-            new_vertex = vertex.copy()
-            weighted_rotation = 0
-            weighted_translation = 0
-
-            weights = [ti.exp(-dist[i] ** 2 / (2 * sigma ** 2)) for i in range(len(dist))]
-            weights_normalized = [weights[i] / weights.sum() for i in range(len(weights))]
-            for i in range(len(neighbors_particles_indices)):
-                wi = weights_normalized[i]
-                index = neighbors_particles_indices[i]
-
-                weighted_rotation += wi * self.ellips_field.get_rotation_matrix(
-                    index) @ self.ellips_field.get_rest_rotation_matrix(index).transpose()
-                weighted_translation += wi * (self.ellips_field.get_x(index) - self.ellips_field.get_rest_x(index))
-
-            new_vertex = weighted_rotation @ new_vertex + weighted_translation
-            new_vertices.append(vertex)
-
-        new_vertices = np.array(new_vertices)
-        self.mesh.vertices = o3d.utility.Vector3dVector(new_vertices)
-        o3d.visualization.draw_geometries([mesh])
-
-    # @ti.func
+    #@ti.func
     # def generate_collisions_particle_D(self):
     #     k = 0
     #     for i in range(self.nb_of_ellipsoids):  # approximate collisions using spheres
@@ -871,6 +831,39 @@ class Simulation(object):
     #     x_loc = (1 / (ti.sqrt(n.transpose() @ inv_A @ n))[0]) * (inv_A @ n)
     #     radius = (x_loc).norm()
     #     return radius
+
+def skinVertices(sim):
+
+    for i in range(sim.loader.get_nb_of_bodies()):
+
+        new_vertices = []
+        for j in range(sim.loader.get_body_nb_of_vertex(i)):
+
+            list_id, list_weights, vertex = sim.loader.get_hyper_weights(i, j)
+
+            new_vertex = np.array([0.,0.,0.])
+
+            for k in range(len(list_id)):
+                weight_k = list_weights[k]
+                id_ellipse = list_id[k]
+                vertex_local = vertex[k]
+
+                rotation = sim.ellips_field.rot[id_ellipse].to_numpy()
+                translation = sim.ellips_field.x[id_ellipse].to_numpy()
+                #print(translation,vertex_local)
+                new_vertex += weight_k*(rotation@vertex_local + translation)
+
+            new_vertices.append(new_vertex)
+
+        mesh = sim.loader.vis_meshes_list[i]
+        mesh.vertices = o3d.utility.Vector3dVector(new_vertices)
+
+        axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+        o3d.visualization.draw_geometries([mesh, axis])
+        #o3d.visualization.draw_geometries([mesh])
+        #o3d.io.write_triangle_mesh("Meshes/Frames/frame_"+str(sim.cur_step)+"_body_"+str(i)+".ply", mesh)
+        print("done for frame "+str(sim.cur_step)+", body "+str(i))
+        #print(new_vertices[0])
 
 
 def main():
@@ -937,7 +930,17 @@ def main():
     # print(vis.get_render_option().line_width)
 
     while True:
-        sim.step()
+        if not sim.paused :
+            sim.step()
+
+        #Skinning is done outside taichi scope so here :
+        #TO DO
+        #print(sim.loader.get_hyper_weights(0, 0))
+            skinVertices(sim)
+
+            #sim.paused = True
+
+
 
         # Update of meshes and then of lines
         for mesh in sim.ellips_field.meshes.ravel():
@@ -948,6 +951,58 @@ def main():
             break
         vis.update_renderer()
 
+
+# def skinVertices(sigma,iteration,ellips_field):
+
+#     new_meshes_to_visualize = []
+
+#     for index_body in range(len(ellips_field.bodies)):
+#         bodies_indexes = ellips_field.get_body_indexes(index_body)
+#         idx_last_ellips_body = bodies_indexes[1]
+#         idx_first_ellips_body = bodies_indexes[0]
+
+#         ellipsoids = []
+#         for i in range(idx_first_ellips_body, idx_last_ellips_body):
+#             ellipsoids.append(ellips_field.get_rest_x(i))
+
+#         body_number = ellips_field.bodies[index_body]
+#         mesh = ellips_field.mesh[body_number]
+#         vertices = np.asarray(mesh.vertices)
+#         new_vertices = []
+
+#         #get ellipsoid neighbors of each vertex and the weighted transformation matrix
+#         k_neighbors = 4
+#         support_structure = o3d.geometry.PointCloud()
+
+#         support_structure.points = o3d.utility.Vector3dVector(ellipsoids)
+#         support_tree = KDTree(ellipsoids)
+
+#         for index_vertex in range(vertices.shape[0]):
+#             vertex = vertices[index_vertex]
+#             dist, neighbors_particles_indices = support_tree.query(vertex, k=k_neighbors)
+#             new_vertex = vertex.copy()
+#             weighted_rotation = 0
+#             weighted_translation = 0
+
+#             weights = [np.exp(-dist[i]**2/(2*sigma**2)) for i in range(len(dist))]
+#             weights_normalized = [weights[i]/weights.sum() for i in range(len(weights))]
+#             for i in range(len(neighbors_particles_indices)):
+#                 wi = weights_normalized[i]
+#                 index = neighbors_particles_indices[i]
+
+#                 weighted_rotation += wi*ellips_field.get_rotation_matrix(index)@ellips_field.get_rest_rotation_matrix(index).transpose()
+#                 weighted_translation += wi*(ellips_field.get_x(index) - ellips_field.get_rest_x(index))
+
+#             new_vertex = weighted_rotation@new_vertex + weighted_translation
+#             new_vertices.append(vertex)
+
+#         new_vertices = np.array(new_vertices)
+#         mesh.vertices = o3d.utility.Vector3dVector(new_vertices)
+#         new_meshes_to_visualize.append(mesh)
+
+#     o3d.visualization.draw_geometries(new_meshes_to_visualize)
+#     for i in range(len(new_meshes_to_visualize)):
+#         o3d.io.write_triangle_mesh("../Meshes/Frames/duck_frame_"+iteration+"_mesh_"+i+".ply", new_meshes_to_visualize[i])
 
 if __name__ == "__main__":
     main()
