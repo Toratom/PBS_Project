@@ -352,13 +352,8 @@ class Simulation(object):
         self.project_shape_matching_constr(0.01) # 0.35 (stiff), 0.01 soft
         self.epilogue(2.) #the bigger, less there is damping during collision #1.
         self.friction_ground(0.5, 0.1) # 0.5, 0.5 in 2D #4, 4 3D cube #0.01, 1
-<<<<<<< HEAD
-        self.friction_particles(0.5, 0.5)
-        
-=======
         self.friction_particles(1, 1)
 
->>>>>>> d4efd13c1d00f305cc33a47c999cdd2f220e1939
         self.ellips_field.update_new_positions()  # IMPORTANT TO KEEP, NEEDED TO COMPUTE V_NEW !!
 
     @ti.func
@@ -885,7 +880,7 @@ def main():
 def skinVertices(sigma,iteration,ellips_field):
 
     new_meshes_to_visualize = []
-    
+
     for index_body in range(len(ellips_field.bodies)):
         bodies_indexes = ellips_field.get_body_indexes(index_body)
         idx_last_ellips_body = bodies_indexes[1]
@@ -907,8 +902,8 @@ def skinVertices(sigma,iteration,ellips_field):
         support_structure.points = o3d.utility.Vector3dVector(ellipsoids)
         support_tree = KDTree(ellipsoids)
 
-        for i in range(vertices.shape[0]):
-            vertex = vertices[i]
+        for index_vertex in range(vertices.shape[0]):
+            vertex = vertices[index_vertex]
             dist, neighbors_particles_indices = support_tree.query(vertex, k=k_neighbors) 
             new_vertex = vertex.copy()
             weighted_rotation = 0
