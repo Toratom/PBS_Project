@@ -2,11 +2,31 @@ import open3d as o3d
 import numpy as np
 import random
 
-x = np.array([1., 0., 1.])
-w = np.exp(-x * x / (2 * 1.))
-w /= w.sum()
-print(w)
-print(x.reshape((1, -1)))
+# radii = [1., 0.5, 1.]
+# visual_mesh = o3d.geometry.TriangleMesh.create_sphere(radius = 1.0, resolution = 120)
+# T = np.zeros((4, 4), dtype = float)
+# T[3, 3] = 1.0
+# T[0, 0] = radii[0]
+# T[1, 1] = radii[1]
+# T[2, 2] = radii[2]
+# visual_mesh.transform(T)
+
+visual_mesh = o3d.io.read_triangle_mesh("test.ply")
+
+# visual_mesh.compute_vertex_normals()
+# visual_mesh.compute_triangle_normals()
+# o3d.visualization.draw_geometries([visual_mesh, axis])
+
+# vertexes = visual_mesh.vertices
+# vertexes += np.array([0., 5., 0.])
+# visual_mesh.vertices = o3d.utility.Vector3dVector(vertexes)
+
+visual_mesh.compute_vertex_normals()
+visual_mesh.compute_triangle_normals()
+axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+o3d.visualization.draw_geometries([visual_mesh, axis])
+
+o3d.io.write_triangle_mesh("test.ply", visual_mesh)
 
 # a = np.array([])
 # try :

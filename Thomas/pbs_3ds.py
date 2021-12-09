@@ -9,6 +9,7 @@ from taichi.lang.ops import sqrt
 from loader import Loader
 import utils
 from sklearn.neighbors import KDTree
+from tqdm import tqdm
 
 ti.init(arch=ti.cpu)
 
@@ -244,7 +245,7 @@ class Simulation(object):
     ini_mass = np.array([10., 10., 10., 10., 10., 10., 10., 10., 40., 40., 40., 40., 40., 40., 10., 10., 10., 10., 10., 10., 10., 10., 40., 40., 40., 40., 40., 40.]) * 100
     gravity = np.array([0., -9.8, 0.])'''
 
-    #-------- USING THE LAODER --------
+    #-------- USING THE LAODER -------- 
     loader = Loader(True)
 
     #Duck 1
@@ -815,7 +816,7 @@ def skinVertices(sim):
                 
                 rotation = sim.ellips_field.rot[id_ellipse].to_numpy()
                 translation = sim.ellips_field.x[id_ellipse].to_numpy()
-                print(translation,vertex_local)
+                #print(translation,vertex_local)
                 new_vertex += weight_k*(rotation@vertex_local + translation)
 
             new_vertices.append(new_vertex)
