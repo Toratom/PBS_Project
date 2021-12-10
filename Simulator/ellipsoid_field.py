@@ -1,20 +1,15 @@
 import taichi as ti
 import open3d as o3d
 import numpy as np
-import math
 import itertools
 import utils
 
 
-class ObjType:
-    STATIC = 0
-    DYNAMIC = 1
-
-
 @ti.data_oriented
 class EllipsoidField(object):
-    #TO DO :
-    #   ## Add Intertia tensor cf page 4 oriented particules
+    '''
+    An adaptation of the class RigidObjectField which was given during the labs session on rigid bodies
+    '''
 
     def __init__(self,
      radii_array,
@@ -31,15 +26,8 @@ class EllipsoidField(object):
         self.nb_of_particules = np.prod(self.shape)
         self.meshes = np.ndarray(shape = self.shape, dtype=o3d.geometry.TriangleMesh) #Array of references to the ellipsoids meshes
         self.lines = o3d.geometry.LineSet() #Ref to the lineSet
-        #Do we really needs to stored them ?
-        self.radii_array = radii_array
-        self.center_array = center_array
-        self.rot_array = rot_array
-        self.connections_np = connections
-        self.nb_of_edges = self.connections_np.shape[0]
-        self.velocity_array = velocity_array
-        self.mass_array = mass_array
-        self.gravity = ti.Vector([gravity[0], gravity[1], gravity[2]])
+        self.nb_of_edges = connections.shape[0]
+        self.gravity = ti.Vector([gravity[0], gravity[1], gravity[2]])        
 
         if (len(shape) != 1) :
             print("ERROR Shape must be 1D") #Because bodies_indexes assumes 1D
@@ -51,18 +39,17 @@ class EllipsoidField(object):
             self.shape_ranges.append(list(range(dim)))
 
         #create the lines
-        if (self.nb_of_edges > 0 and self.connections_np.shape[1] == 2) :
-            self.lines.points = o3d.utility.Vector3dVector(self.center_array)
-            self.lines.lines = o3d.utility.Vector2iVector(self.connections_np)
+        if (self.nb_of_edges > 0 and connections.shape[1] == 2) :
+            self.lines.points = o3d.utility.Vector3dVector(center_array)
+            self.lines.lines = o3d.utility.Vector2iVector(connections)
 
         # create the meshes
         n_vertices = np.ndarray(shape = self.shape, dtype=int)
         n_faces = np.ndarray(shape = self.shape, dtype=int)
         self.num_meshes = 0
         for e in itertools.product(*self.shape_ranges):
-            radii = self.radii_array[e]
+            radii = radii_array[e]
             self.meshes[e] = o3d.geometry.TriangleMesh.create_sphere(radius = 1.0, resolution = res)
-            # elli.paint_uniform_color([1.0, 0.4, 0.2])
             #Non uni scaling to sphere to ellipsoid
             T = np.zeros((4, 4), dtype = float)
             T[3, 3] = 1.0
@@ -106,13 +93,13 @@ class EllipsoidField(object):
         self.C.from_numpy(colors)
 
         #init connections
-        self.connections = ti.Vector.field(2, dtype = ti.i32, shape = self.connections_np.shape[0])
-        self.connections.from_numpy(self.connections_np)
+        self.connections = ti.Vector.field(2, dtype = ti.i32, shape = connections.shape[0])
+        self.connections.from_numpy(connections)
 
         #init adjacency list, create a list then a field
         adjacency_list = [[] for _ in range(self.nb_of_particules)]
-        if (self.nb_of_edges > 0 and self.connections_np.shape[1] == 2) :
-            for e in self.connections_np :
+        if (self.nb_of_edges > 0 and connections.shape[1] == 2) :
+            for e in connections :
                 a, b = e
                 adjacency_list[a].append(b)
                 adjacency_list[b].append(a)
@@ -173,8 +160,8 @@ class EllipsoidField(object):
         self.massInv = ti.field(dtype=ti.f32, shape=self.shape)
         self.ext_force = ti.Vector.field(3, dtype=ti.f32, shape=self.shape) # force on body
         for e in itertools.product(*self.shape_ranges) :
-            center = self.center_array[e]
-            q = self.rot_array[e]
+            center = center_array[e]
+            q = rot_array[e]
             # First row of the rotation matrix
             r00 = 2 * (q[3] * q[3] + q[0] * q[0]) - 1
             r01 = 2 * (q[0] * q[1] - q[3] * q[2])
@@ -189,10 +176,10 @@ class EllipsoidField(object):
             r22 = 2 * (q[3] * q[3] + q[2] * q[2]) - 1
             # 3x3 rotation matrix
             rot_matrix = ti.Matrix([[r00, r01, r02], [r10, r11, r12], [r20, r21, r22]])
-            v = self.velocity_array[e]
+            v = velocity_array[e]
             w = angular_velocity_array[e]
-            m = self.mass_array[e]
-            radii = self.radii_array[e]
+            m = mass_array[e]
+            radii = radii_array[e]
 
             self.init_x[e] = center
             self.init_quat[e] = q
@@ -215,13 +202,6 @@ class EllipsoidField(object):
         self.v = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)  # linear velocity
         self.w = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)  # angular velocity
 
-        #TO DO :
-        # rigid object properties
-        # self.type = ti.field(dtype=ti.i32, shape=self.shape)
-        # self.inertia = ti.Matrix.field(3, 3, dtype=ti.f32, shape=self.shape)
-        # self.inertiaInv = ti.Matrix.field(3, 3, dtype=ti.f32, shape=self.shape)
-        # self.torque = ti.Vector.field(3, dtype=ti.f32, shape=self.shape)  # torque
-
         self.reset_members()
 
     @ti.kernel
@@ -243,13 +223,6 @@ class EllipsoidField(object):
             self.v[idx] = self.init_v[idx]
             self.w[idx] = self.init_w[idx]
             self.ext_force[idx] = self.mass[idx] * self.gravity
-            # self.mass[idx] = 1.0
-            # self.massInv[idx] = 1.0 / self.mass[idx]
-            #TO DO :
-            # self.type[idx] = ObjType.DYNAMIC
-            # self.scale[idx] = 1.0
-            # self.w[idx] = [0.0, 0.0, 0.0]
-            # self.torque[idx] = [0.0, 0.0, 0.0]
 
     @ti.kernel
     def recompute_COM(self):
@@ -267,10 +240,6 @@ class EllipsoidField(object):
         for idx in ti.grouped(self.x):
             for i in range(self.nV[idx]):
                 self.new_V[idx, i] = self.rot[idx] @ self.V[idx, i] + self.x[idx]
-
-    # @ti.func
-    # def get_type(self, idx=ti.Vector([])):
-    #     return self.type[idx]
 
     @ti.func
     def get_nb_of_particules(self) :
@@ -304,21 +273,6 @@ class EllipsoidField(object):
             ...
         '''
         return self.bodies_indexes[idx]
-    
-    # @ti.func #DOES NOT WORK !!
-    # def get_adjacency(self, idx) :
-    #     '''
-    #     Give a 1D scalar field F, such that 
-    #         - Its first value F[0] is the number of neighbors of particule idx
-    #         - The following value are the index of its neighbors
-    #     adj = get_adjacency(idx)
-    #     for i in range(1, adj[0] + 1) :
-    #         print(adj[i])
-    #     '''
-    #     adj = ti.Vector(self.max_p_neighbors + 1, dt = ti.i32)
-    #     for i in range(self.max_p_neighbors + 1) :
-    #         adj[i] = self.adjacency[idx, i]
-    #     return adj
 
     @ti.func
     def get_neighbor(self, idx, i_neighbor) :
@@ -413,13 +367,6 @@ class EllipsoidField(object):
     def get_mass(self, idx=ti.Vector([])):
         return self.mass[idx]
 
-    #Pour l'instant on ne peut pas modifier la masse apres init
-    # @ti.func
-    # def set_mass(self, m, idx=ti.Vector([])):
-    #     if self.type[idx] == int(ObjType.DYNAMIC):
-    #         self.mass[idx] = m
-    #         self.massInv[idx] = 1.0 / self.mass[idx]
-
     @ti.func
     def get_massInv(self, idx=ti.Vector([])):
         return self.massInv[idx]
@@ -447,105 +394,3 @@ class EllipsoidField(object):
     @ti.func
     def set_ext_force(self, f, idx=ti.Vector([])):
         self.ext_force[idx] = f
-    
-    # @ti.func
-    # def get_scale(self, idx=ti.Vector([])):
-    #     return self.scale[idx]
-
-    # @ti.func
-    # def get_inertia(self, idx=ti.Vector([])):
-    #     return self.inertia[idx]
-
-    # @ti.func
-    # def get_inertiaInv(self, idx=ti.Vector([])):
-    #     return self.inertiaInv[idx]
-
-    # @ti.func
-    # def get_inertia_world(self, idx=ti.Vector([])):
-    #     return self.rot[idx] @ self.inertia[idx] @ self.rot[idx].inverse()
-
-    # @ti.func
-    # def get_inertiaInv_world(self, idx=ti.Vector([])):
-    #     return self.rot[idx] @ self.inertiaInv[idx] @ self.rot[idx].inverse()
-
-    # @ti.func
-    # def get_angular_momentum(self, idx=ti.Vector([])):
-    #     return self.get_inertia_world(idx) @ self.w[idx]
-
-    # @ti.func
-    # def get_velocity(self, p, idx=ti.Vector([])):
-    #     return self.get_linear_velocity(idx) + self.get_angular_velocity(idx).cross(
-    #         p - self.x[idx]
-    #     )
-
-    # @ti.func
-    # def get_torque(self, idx=ti.Vector([])):
-    #     return self.torque[idx]
-
-    # @ti.func
-    # def apply_force_to_COM(self, f, idx=ti.Vector([])):
-    #     if self.type[idx] == int(ObjType.DYNAMIC):
-    #         self.force[idx] += f
-
-    # @ti.func
-    # def apply_force(self, f, p, idx=ti.Vector([])):
-    #     if self.type[idx] == int(ObjType.DYNAMIC):
-    #         self.force[idx] += f
-    #         self.torque[idx] += (p - self.x[idx]).cross(f)
-
-    # @ti.func
-    # def apply_torque(self, t, idx=ti.Vector([])):
-    #     if self.type[idx] == int(ObjType.DYNAMIC):
-    #         self.torque[idx] += t
-
-    # @ti.func
-    # def set_type(self, t, idx=ti.Vector([])):
-    #     self.type[idx] = t
-
-    #     if self.type[idx] == ObjType.STATIC:
-    #         self.mass[idx] = 3e38
-    #         self.massInv[idx] = 0
-    #         self.inertia[idx] = ti.Matrix([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
-    #         self.inertiaInv[idx] = ti.Matrix([[0, 0, 0], [0, 0, 0], [0, 0, 0]])
-    #         self.force[idx] = ti.Vector([0.0, 0.0, 0.0])
-    #         self.torque[idx] = ti.Vector([0.0, 0.0, 0.0])
-
-    # @ti.func
-    # def set_scale(self, s, idx=ti.Vector([])):
-    #     self.scale[idx] = s
-
-    # @ti.func
-    # def set_inertia(self, _I, idx=ti.Vector([])):
-    #     if self.type[idx] == int(ObjType.DYNAMIC):
-    #         self.inertia[idx] = _I
-    #         self.inertiaInv[idx] = self.inertia[idx].inverse()
-
-    # @ti.func
-    # def set_angular_momentum(self, _l, idx=ti.Vector([])):
-    #     if self.type[idx] == int(ObjType.DYNAMIC):
-    #         self.w[idx] = self.get_inertiaInv_world(idx) @ _l
-
-    # @ti.func
-    # def set_linear_velocity(self, v, idx=ti.Vector([])):
-    #     if self.type[idx] == int(ObjType.DYNAMIC):
-    #         self.v[idx] = v
-
-    # @ti.func
-    # def set_angular_velocity(self, w, idx=ti.Vector([])):
-    #     if self.type[idx] == int(ObjType.DYNAMIC):
-    #         self.w[idx] = w
-
-    # @ti.func
-    # def set_torque(self, t, idx=ti.Vector([])):
-    #     if self.type[idx] == int(ObjType.DYNAMIC):
-    #         self.torque[idx] = t
-
-    # @ti.func
-    # def reset_force(self):
-    #     for idx in ti.grouped(self.force):
-    #         self.force[idx] = ti.Vector([0.0, 0.0, 0.0])
-
-    # @ti.func
-    # def reset_torque(self):
-    #     for idx in ti.grouped(self.torque):
-    #         self.torque[idx] = ti.Vector([0.0, 0.0, 0.0])

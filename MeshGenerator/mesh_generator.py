@@ -4,8 +4,6 @@ import sys
 import open3d as o3d
 import numpy as np
 from sklearn.neighbors import KDTree
-# import math
-# import itertools
 
 
 class MeshGenerator(object):
