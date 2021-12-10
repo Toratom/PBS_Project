@@ -1,0 +1,27 @@
+Test done with detail duck with the following parameters :
+  - Shape matching stiffness 0.01
+  - Epilogue 2
+  - Friction Ground 1, 0.2
+  - Friction Particles 1, 1
+
+Nb of Ducks - dt - Nb of iterations - Resut
+
+1 - 3e-3 - 1 - YES
+1 - 8e-3 - 1 - YES but there is a lot more deformations
+Idea of explenation : as dt is bigger the deltaXs are bigger and as consequence the deformation due to the ground is bigger,
+(half of the body can be inside the ground, and so deformed whereasthe top half still outside and not defromed). One iteration
+of step matching cannot resolve this big deformation
+1 - 8e-3 - 25 - YES but there is still some deformation and strange sliding artefact
+Idea of explenation : the alternance of shape matching deplacement and ground collision deplacement create the sliding
+Shape matching gives a deplacement a bit horizontale and going in the ground which is corrected by the collision by only a deplacement horizontal
+1 - 8e-3 - 50 - YES but strange sliding artefact
+1 - 3e-2 - 25 - YES but lot of deformation and strange sliding artefact
+1 - 3e-2 - 50 - YES but lot of deformation and strange sliding artefact
+1 - 3e-2 - 200 - YES but strange sliding artefact
+1 - 3e-1 UNSTABLE either too much deformation the duck becomes flat or just garbage
+Idea of explenation : all the duck in one step goes throught the ground
+
+2 - 3e-3 - 1 - YES
+1 - 8e-3 - 25 - YES but collision not solve...
+Idea of explenation as dt is bigger the ellipsoids has the time to go to the other side of another ellispoid in one step
+Solution test the collision of the ray

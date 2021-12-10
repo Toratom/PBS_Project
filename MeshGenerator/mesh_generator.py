@@ -4,6 +4,7 @@ import sys
 import open3d as o3d
 import numpy as np
 from sklearn.neighbors import KDTree
+from tqdm import tqdm
 
 
 class MeshGenerator(object):
@@ -77,7 +78,10 @@ class MeshGenerator(object):
         all_radii = []
         all_connections = []
 
-        for point in centers:
+        print("Generating Centers")
+        for point_ind in tqdm(range(len(centers))):
+            point = centers[point_ind]
+
             # Find nearest vertices inside the cloud
             computed_distance = self.find_overlapping(point, self.distance, len(all_positions),
                                                       all_radii, all_positions)
@@ -145,7 +149,10 @@ class MeshGenerator(object):
         support_structure.points = o3d.utility.Vector3dVector(points)
         support_tree = KDTree(points)
 
-        for point in points:
+        print("Generating Connections")
+        for point_ind in tqdm(range(len(points))):
+            point = points[point_ind]
+            
             # find the closest neighbors and create connections
             # Combination of two approached: by distance and by neighbors, to optimize results
             dist, neighbors_num = support_tree.query(point.reshape(1, -1), k = (self.d_connections + 1))  # +1 because one is the point itself
