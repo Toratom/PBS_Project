@@ -219,5 +219,49 @@ def main():
 
     print("DEBUGGED")
 
-
 main()
+
+#@ti.func
+# def generate_collisions_particle_D(self):
+#     k = 0
+#     for i in range(self.nb_of_ellipsoids):  # approximate collisions using spheres
+#         for j in range(i + 1, self.nb_of_ellipsoids):
+#             radii1 = self.ellips_field.get_radii(i)
+#             max1 = max(radii1[0], radii1[1], radii1[2])
+#             pos1 = self.ellips_field.get_x(i) #x or p ?
+
+#             radii2 = self.ellips_field.get_radii(j)
+#             max2 = max(radii2[0], radii2[1], radii2[2])
+#             pos2 = self.ellips_field.get_x(j) #x or p ?
+
+#             distance_vector = pos1 - pos2
+#             n = distance_vector.normalized()
+#             distance = distance_vector.norm()
+
+#             if distance < (max1 + max2):  # selection of candidates for collisions
+#                 # computing ellipsoids radius in direction n
+#                 radius1 = self.compute_radius_D(i, n)
+#                 radius2 = self.compute_radius_D(j, n)
+#                 distance = radius1 + radius2 - distance
+#                 if distance > 0:  # detected an approximate collisions.
+#                     # The distance between the particles is smaller than the sum of the radii
+#                     self.particle_contacts[k][0] = i
+#                     self.particle_contacts[k][1] = distance
+#                     self.direction_contacts[k] = n
+#                     k += 1
+#     self.M_particles[None] = k
+
+# @ti.func
+# def compute_radius_D(self, idx: ti.i32, n):
+#     radii = self.ellips_field.get_radii(idx)
+#     first_radius = radii[0]
+#     third_radius = radii[1]
+#     second_radius = radii[2]
+
+#     R = self.ellips_field.get_rotation_matrix(idx)
+#     elip_matrix = ti.Matrix([[first_radius ** 2, 0, 0], [0, second_radius ** 2, 0], [0, 0, third_radius ** 2]]) #R is in the same order as radii x,y,z? Yes cf ground collision
+#     inv_A = R @ elip_matrix @ R.transpose()
+
+#     x_loc = (1 / (ti.sqrt(n.transpose() @ inv_A @ n))[0]) * (inv_A @ n)
+#     radius = (x_loc).norm()
+#     return radius
