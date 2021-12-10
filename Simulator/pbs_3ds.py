@@ -42,16 +42,21 @@ class Simulation(object):
         q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
         self.loader.add_body(path_to_mesh + 'duck_pbs.glb', path_to_mesh + 'davide_test.pkl', q, np.array([0., 8., 0.]))
         #--Duck 2
-        theta = np.radians(90.)#np.radians(90.)
-        u = np.array([1., 0., 0.])
+        theta = np.radians(60.)#np.radians(90.)
+        u = np.array([-1., 0., 0.])
         q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
-        self.loader.add_body(path_to_mesh + 'duck_pbs.glb', path_to_mesh + 'davide_test.pkl', q, np.array([0., 18., 0.]))
+        self.loader.add_body(path_to_mesh + 'duck_pbs.glb', path_to_mesh + 'davide_test.pkl', q, np.array([1., 15., 1.]))
+        #--Duck 3
+        theta = np.radians(130.)#np.radians(90.)
+        u = np.array([-1., 0., 0.])
+        q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+        self.loader.add_body(path_to_mesh + 'duck_pbs.glb', path_to_mesh + 'davide_test.pkl', q, np.array([-1., 20., -1.]))
         #--Generation of the ellipsoids_field
         self.ellips_field = self.loader.generate_ellipsoids_field()
         self.nb_of_ellipsoids = self.loader.get_nb_of_ellipsoids()
         self.nb_of_pairs = self.loader.get_nb_of_edges()
 
-        self.nb_of_iter = 50
+        self.nb_of_iter = 1
         self.dt = 3e-3
         self.t = 0.0
         self.cur_step = 0
@@ -565,10 +570,10 @@ def main():
     '''
     Must be run from the folder Simulator, otherwise change the path to the Meshes folder
     '''
-    path_to_meshes = "..Meshes/" #../Meshes/
+    path_to_meshes = "Meshes/" #../Meshes/
     do_skinning = False
     sim = Simulation(path_to_meshes, res = 5, do_skinning = do_skinning)
-    max_iter = 2150 #if negative run forever
+    max_iter = -1 #if negative run forever
 
 
     # setup gui
