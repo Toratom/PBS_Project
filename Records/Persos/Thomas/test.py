@@ -1,9 +1,10 @@
 import open3d as o3d
 import numpy as np
 import random
+import copy
 
-mesh = o3d.io.read_triangle_mesh("Meshes/duck_smooth_green.obj", True)
-frame = o3d.io.read_triangle_mesh("Meshes/duck_smooth_blue.obj", True)
+mesh = o3d.io.read_triangle_mesh("Meshes/duck_green.obj", True)
+frame = o3d.io.read_triangle_mesh("Meshes/duck_blue.obj", True)
 
 T = np.zeros((4, 4), dtype = float)
 T[3, 3] = 1.
@@ -11,19 +12,18 @@ T[0, 0] = 0.5
 T[1, 1] = 1.
 T[2, 2] = 0.5
 mesh.transform(T)
-vertexes = np.asarray(mesh.vertices)
-print(vertexes)
+vertexes = np.asarray(copy.deepcopy(mesh).vertices)
 vertexes += np.array([0., 5., 0.])
 mesh.vertices = o3d.utility.Vector3dVector(vertexes)
 
 mesh.compute_vertex_normals()
 mesh.compute_triangle_normals()
 
-# axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
+axis = o3d.geometry.TriangleMesh.create_coordinate_frame(size=1, origin=[0, 0, 0])
 frame += mesh
-# o3d.visualization.draw_geometries([axis, frame])
+o3d.visualization.draw_geometries([axis, frame])
 
-o3d.io.write_triangle_mesh("test.obj", frame)
+# o3d.io.write_triangle_mesh("test.obj", frame)
 
 
 # frame = o3d.geometry.TriangleMesh()

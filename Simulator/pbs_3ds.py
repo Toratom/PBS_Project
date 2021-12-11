@@ -5,6 +5,7 @@ import open3d as o3d
 from taichi.lang.ops import sqrt
 from loader import Loader
 import utils
+import copy
 
 #For debugging
 #import time
@@ -550,13 +551,13 @@ def skinVertices(sim, path_to_meshes, save_all_bodies = False, save_frame = True
 
     #print("Begin export")
     #start = time.time()
-    mesh = sim.loader.vis_meshes_list[b_ind]
+    mesh = copy.deepcopy(sim.loader.vis_meshes_list[b_ind])
     mesh.vertices = o3d.utility.Vector3dVector(new_vertices)
     #Save the body in the frame
     frame = mesh
 
     if save_all_bodies :
-        o3d.io.write_triangle_mesh(path_to_meshes + "Frames/body_" + str(b_ind) + "_frame_" + str(sim.cur_step) + ".obj", mesh)
+        o3d.io.write_triangle_mesh(path_to_meshes + "Frames/body_" + str(b_ind) + "_frame_" + str(sim.cur_step) + ".obj", mesh, compressed = True)
     print("Done for frame " + str(sim.cur_step) + ", body " + str(b_ind))
 
     #The other bodies :
@@ -583,7 +584,7 @@ def skinVertices(sim, path_to_meshes, save_all_bodies = False, save_frame = True
 
         #print("Begin export")
         #start = time.time()
-        mesh = sim.loader.vis_meshes_list[b_ind]
+        mesh = copy.deepcopy(sim.loader.vis_meshes_list[b_ind])
         mesh.vertices = o3d.utility.Vector3dVector(new_vertices)
         #Save the body in the frame
         frame += mesh
