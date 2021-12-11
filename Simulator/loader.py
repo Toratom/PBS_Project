@@ -79,8 +79,9 @@ class Loader(object) :
 
         if self.do_skinning :
             #Pre cumputation of skinning weights
-            mesh = o3d.io.read_triangle_mesh(path_to_vis_mesh)
-            nb_of_vertexes = len(mesh.vertices)
+            mesh = o3d.io.read_triangle_mesh(path_to_vis_mesh, True)
+            vertexes = np.asarray(mesh.vertices)
+            nb_of_vertexes = len(vertexes)
             ellips_position = graph["centers"] #shape [Nb Elli, 3]
             ellips_rotation = graph["rotations"] #shape [Nb Elli, 4]
             print("Nb of Vertices of Loading Mesh : ", nb_of_vertexes)
@@ -93,7 +94,7 @@ class Loader(object) :
             vertexes_weights = [None] * nb_of_vertexes #Each entry None will be replaced by a list of 3 entries 1 : a list of ellips_id, 2 : a list of their associated weights, 3 : a list of the coord of v in their associated local space
             tree = KDTree(ellips_position, leaf_size = 2)
             for v_ind in tqdm(range(nb_of_vertexes)) :
-                v = mesh.vertices[v_ind]
+                v = vertexes[v_ind]
                 distances, ellips_local_id = tree.query(v.reshape(1, -1), k = nb_of_influencing_particles)
                 distances = distances.reshape(-1)
                 ellips_local_id = ellips_local_id.reshape(-1)
