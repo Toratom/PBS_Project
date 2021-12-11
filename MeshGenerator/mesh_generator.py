@@ -24,7 +24,7 @@ class MeshGenerator(object):
 
         # Code adapted from Open3D tutorial
         print('Loading the mesh:')
-        self.mesh = o3d.io.read_triangle_mesh(mesh_path)
+        self.mesh = o3d.io.read_triangle_mesh(mesh_path, True)
         #No longer needed with the loader :
         # Rotating the mesh. Blender inverts y and z
         # R = self.mesh.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))

@@ -37,20 +37,20 @@ class Simulation(object):
         self.loader = Loader(do_skinning, res)
 
         #--Duck 1
-        theta = np.radians(90.)
-        u = np.array([-1., 0., 0.])
+        theta = np.radians(0.)
+        u = np.array([1., 0., 0.])
         q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
-        self.loader.add_body(path_to_mesh + 'duck_pbs.glb', path_to_mesh + 'davide_test.pkl', q, np.array([0., 8., 0.]))
+        self.loader.add_body(path_to_mesh + 'duck_yellow.obj', path_to_mesh + 'duck_y_up.pkl', q, np.array([0., 8., 0.]))
         #--Duck 2
-        theta = np.radians(60.)#np.radians(90.)
+        theta = np.radians(30.) #np.radians(90.)
         u = np.array([-1., 0., 0.])
         q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
-        self.loader.add_body(path_to_mesh + 'duck_pbs.glb', path_to_mesh + 'davide_test.pkl', q, np.array([1., 15., 1.]))
-        #--Duck 3
-        theta = np.radians(130.)#np.radians(90.)
+        self.loader.add_body(path_to_mesh + 'duck_blue.obj', path_to_mesh + 'duck_y_up.pkl', q, np.array([1., 15., 1.]))
+        # #--Duck 3
+        theta = np.radians(-30.) #np.radians(90.)
         u = np.array([-1., 0., 0.])
         q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
-        self.loader.add_body(path_to_mesh + 'duck_pbs.glb', path_to_mesh + 'davide_test.pkl', q, np.array([-1., 20., -1.]))
+        self.loader.add_body(path_to_mesh + 'duck_green.obj', path_to_mesh + 'duck_y_up.pkl', q, np.array([-1., 23., -1.]))
         #--Generation of the ellipsoids_field
         self.ellips_field = self.loader.generate_ellipsoids_field()
         self.nb_of_ellipsoids = self.loader.get_nb_of_ellipsoids()
@@ -522,14 +522,46 @@ class Simulation(object):
 
 
 
-def skinVertices(sim, path_to_meshes, save_all_bodies = False):
+def skinVertices(sim, path_to_meshes, save_all_bodies = False, save_frame = True):
     trans_field = sim.ellips_field.x.to_numpy()
     rot_field = sim.ellips_field.rot.to_numpy()
 
-    frame = o3d.geometry.TriangleMesh()
-    for b_ind in range(sim.loader.get_nb_of_bodies()):
+    #Initialization with body 0 :
+    b_ind = 0
+    nb_of_vertexes = sim.loader.get_body_nb_of_vertex(b_ind)
+    new_vertices = [None] * nb_of_vertexes
+    #start = time.time()
+    for v_ind in range(nb_of_vertexes):
+        list_id, list_weights, vertex = sim.loader.get_hyper_weights(b_ind, v_ind)
+        
+        new_vertex = np.array([0.,0.,0.])
+        for k in range(len(list_id)):
+            weight_k = list_weights[k]
+            id_ellipse = list_id[k]
+            vertex_local = vertex[k]
+            
+            rotation = rot_field[id_ellipse]
+            translation = trans_field[id_ellipse]
+            new_vertex += weight_k*(rotation@vertex_local + translation)
+
+        new_vertices[v_ind] = new_vertex
+    #end = time.time()
+    #print("Skinning Compu Time : ", end - start)
+
+    #print("Begin export")
+    #start = time.time()
+    mesh = sim.loader.vis_meshes_list[b_ind]
+    mesh.vertices = o3d.utility.Vector3dVector(new_vertices)
+    #Save the body in the frame
+    frame = mesh
+
+    if save_all_bodies :
+        o3d.io.write_triangle_mesh(path_to_meshes + "Frames/body_" + str(b_ind) + "_frame_" + str(sim.cur_step) + ".obj", mesh)
+    print("Done for frame " + str(sim.cur_step) + ", body " + str(b_ind))
+
+    #The other bodies :
+    for b_ind in range(1, sim.loader.get_nb_of_bodies()):
         nb_of_vertexes = sim.loader.get_body_nb_of_vertex(b_ind)
-        print("Start Skinning Body : ", b_ind)
         new_vertices = [None] * nb_of_vertexes
         #start = time.time()
         for v_ind in range(nb_of_vertexes):
@@ -557,23 +589,24 @@ def skinVertices(sim, path_to_meshes, save_all_bodies = False):
         frame += mesh
 
         if save_all_bodies :
-            o3d.io.write_triangle_mesh(path_to_meshes + "Frames/body_" + str(b_ind) + "_frame_" + str(sim.cur_step) + ".ply", mesh)
-        print("done for frame " + str(sim.cur_step) + ", body " + str(b_ind))
+            o3d.io.write_triangle_mesh(path_to_meshes + "Frames/body_" + str(b_ind) + "_frame_" + str(sim.cur_step) + ".obj", mesh)
+        print("Done for frame " + str(sim.cur_step) + ", body " + str(b_ind))
         # end = time.time()
         # print("export ", end - start)
     
     #Save the frame
-    o3d.io.write_triangle_mesh(path_to_meshes + "Frames/frame_" + str(sim.cur_step) + ".ply", frame)
+    if save_frame :
+        o3d.io.write_triangle_mesh(path_to_meshes + "Frames/frame_" + str(sim.cur_step) + ".obj", frame)
 
 
 def main():
     '''
     Must be run from the folder Simulator, otherwise change the path to the Meshes folder
     '''
-    path_to_meshes = "Meshes/" #../Meshes/
+    path_to_meshes = "..Meshes/" #../Meshes/
     do_skinning = False
     sim = Simulation(path_to_meshes, res = 5, do_skinning = do_skinning)
-    max_iter = -1 #if negative run forever
+    max_iter = 2005 #if negative run forever
 
 
     # setup gui
