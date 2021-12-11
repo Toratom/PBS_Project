@@ -5,7 +5,7 @@ import open3d as o3d
 import numpy as np
 from sklearn.neighbors import KDTree
 from tqdm import tqdm
-
+# TODO: gestire runtime error quando non si può costruire il grafo
 
 class MeshGenerator(object):
     def __init__(self, mesh_path, distance, num_ellips, r_connections, d_connections):
@@ -146,7 +146,11 @@ class MeshGenerator(object):
         # Another KDTree to simplify queries
         support_structure = o3d.geometry.PointCloud()
         points = np.array(all_positions)
-        support_structure.points = o3d.utility.Vector3dVector(points)
+        try:
+            support_structure.points = o3d.utility.Vector3dVector(points)
+        except RuntimeError as e:
+            print("Cannot create a graph of particles. Probably, the maximum radius is too small")
+            exit()
         support_tree = KDTree(points)
 
         print("Generating Connections")
