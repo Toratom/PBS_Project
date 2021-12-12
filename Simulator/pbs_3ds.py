@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import itertools
 import taichi as ti
@@ -191,7 +193,6 @@ class Simulation(object):
 
                 r_i = self.ellips_field.get_x(i) - x_cm
                 dv_i = v_cm + w.cross(r_i) - v
-                #print(v,r_i,x_cm,v_cm,w.cross(r_i),dv_i)
                 v += stiffness*dv_i
                 self.ellips_field.set_velocity(v, i)
 
@@ -208,7 +209,7 @@ class Simulation(object):
     @ti.func
     def prologue_rotations(self):
         for i in range(self.nb_of_ellipsoids):
-            #I use here the integration of q saw in lectures, not the one propose
+            #I use here the integration of q saw in lectures, not the one proposed
             w = self.ellips_field.get_angular_velocity(i)
             wq = ti.Vector([w.x, w.y, w.z, 0])
             q = self.ellips_field.get_rotation(i)
@@ -319,8 +320,6 @@ class Simulation(object):
             # p = self.ellips_field.get_p(idx)
             # p = p + d * n
             # self.ellips_field.set_p(p, idx)
-
-            #maybe better to move both particles by d/2 ?
 
             idxj = int(self.particle_contacts[i][0])
             idxi = int(self.particle_contacts[i][2])
@@ -603,17 +602,36 @@ def skinVertices(sim, path_to_meshes, save_all_bodies = False, save_frame = True
         o3d.io.write_triangle_mesh(path_to_meshes + "Frames/frame_" + str(sim.cur_step) + ".obj", frame)
 
 def init_sim() :
-    print('Welcome to our simulation, to use default values just tap "ENTER" wihout writing anything to answer the following questions')
+    arguments = sys.argv
+    if arguments.__len__() <= 2:
+        do_skinning = False
+        nb_frames = -1
+    elif arguments[1] == "False":
+        do_skinning = False
+        nb_frames = -1
+    elif arguments[1] == "True" and arguments.__len__() == 2:
+        do_skinning = True
+    elif arguments[1] == "True" and arguments.__len__() >= 3:
+        do_skinning = True
+        nb_frames = int(arguments[2])
+
+    if do_skinning == False:
+        print("Skinning option is inactive")
+    else:
+        print("Skinning option is active")
+
+    if nb_frames == -1:
+        print("number of frames is not limited")
+    else:
+        print(f"number of frames is limited to {nb_frames}")
+
+    print('\nWelcome the simulator, to use default values just tap "ENTER" in any option')
 
     path_to_meshes = "../Meshes/" #../Meshes/
     nb_of_ducks = max(int(input("How many ducks do you want to simulate (1, 2 or 3):\n") or 3), 1)
     dt = max(float(input("What time step do you want (recommended 3e-3):\n") or 3e-3), 1e-4)
     nb_iter_solver = max(int(input("How many iterations in the solver (recommended 1):\n") or 1), 1)
-    shape_matching_stiff = np.clip(float(input("Shape matching stifness [0, 1] (recommended 0.01), the smaller the softer the ducks will be:\n") or 0.01), 0., 1.)
-    do_skinning = False
-    if input("Do you want to do skinning (y/n), the meshes will be stored in Meshes/Frames:\n") == "y" :
-        do_skinning = True
-    nb_frames = max(int(input("How many frames do you want to simulate (-1 the simulation will run forever):\n") or -1), -1)
+    shape_matching_stiff = np.clip(float(input("Select shape matching stiffness [0, 1] (recommended 0.01), the smaller the softer the ducks will be:\n") or 0.01), 0., 1.)
 
     print('The simulation is in progress... To start it just press "SPACE", once the open3D window is opened')
 

@@ -305,7 +305,8 @@ class MeshGenerator(object):
 def main():
     mesh_name = input("Insert mesh name (with extension and path):\n")
     input_string = input("Insert the value of parameters on a line (separate by spaces):\n" +
-                         "candidate_radius | num_centers | conn_radius | conn_number (ENTER for default)\n")
+                         "candidate_radius | num_centers | conn_radius | conn_number (ENTER for default)\n"+
+                         "Suggested values: 0.90 1500 1.75 9\n")
     # Suggested parameters: 0.90 1500 1.75 9
     input_buffer = input_string.split(" ")
     if input_buffer.__len__() < 5:
