@@ -621,13 +621,13 @@ def init_sim() :
         print("Skinning option is active")
 
     if nb_frames == -1:
-        print("number of frames is not limited")
+        print("Number of frames is not limited")
     else:
-        print(f"number of frames is limited to {nb_frames}")
+        print(f"Number of frames is limited to {nb_frames}")
 
     print('\nWelcome the simulator, to use default values just tap "ENTER" in any option')
 
-    path_to_meshes = "..Meshes/" #../Meshes/
+    path_to_meshes = "../Meshes/"
     nb_of_ducks = max(int(input("How many ducks do you want to simulate (1, 2 or 3):\n") or 3), 1)
     dt = max(float(input("What time step do you want (recommended 3e-3):\n") or 3e-3), 1e-4)
     nb_iter_solver = max(int(input("How many iterations in the solver (recommended 1):\n") or 1), 1)
