@@ -303,23 +303,23 @@ class MeshGenerator(object):
 
 
 def main():
-    mesh_name = input("Insert mesh name (with extension and path):\n")
+    mesh_name = input("Insert mesh name (with extension .obj and path):\n")
     input_string = input("Insert the value of parameters on a line (separate by spaces):\n" +
                          "candidate_radius | num_centers | conn_radius | conn_number (ENTER for default)\n"+
                          "Suggested values: 0.90 1500 1.75 9\n")
     # Suggested parameters: 0.90 1500 1.75 9
     input_buffer = input_string.split(" ")
-    if input_buffer.__len__() < 5:
+    if input_buffer.__len__() < 4:
         print("Too few arguments. Using defaults")
         candidate_radius = 0.9
         n_candidate_centers = 1500
         candidate_conn_radius = 1.75
         candidate_conn_number = 9
     else:
-        candidate_radius = float(input_buffer[1])
-        n_candidate_centers = int(input_buffer[2])
-        candidate_conn_radius = float(input_buffer[3])
-        candidate_conn_number = int(input_buffer[4])
+        candidate_radius = float(input_buffer[0])
+        n_candidate_centers = int(input_buffer[1])
+        candidate_conn_radius = float(input_buffer[2])
+        candidate_conn_number = int(input_buffer[3])
 
     print("Loading...")
     generator = MeshGenerator(mesh_name, candidate_radius, n_candidate_centers,
