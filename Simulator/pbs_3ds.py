@@ -20,7 +20,7 @@ class Simulation(object):
     A simulation is an ellipsoids field with a PBD solver
     '''
 
-    def __init__(self, path_to_mesh, res = 5, do_skinning = False):
+    def __init__(self, path_to_mesh, nb_of_ducks = 3, dt = 3e-3, nb_iter_solver = 1, shape_matching_stiff = 0.01, res = 5, do_skinning = False):
         #----- TO CREATE AN ELLIPSOIDS FIELD BY HAND
         # self.ellips_field = EllipsoidField(self.radii_array,
         #                                    self.ini_centers,
@@ -43,23 +43,26 @@ class Simulation(object):
         q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
         self.loader.add_body(path_to_mesh + 'duck_yellow.obj', path_to_mesh + 'duck_y_up.pkl', q, np.array([0., 8., 0.]))
         #--Duck 2
-        theta = np.radians(30.) #np.radians(90.)
-        u = np.array([-1., 0., 0.])
-        q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
-        self.loader.add_body(path_to_mesh + 'duck_blue.obj', path_to_mesh + 'duck_y_up.pkl', q, np.array([1., 15., 1.]))
-        # #--Duck 3
-        theta = np.radians(-30.) #np.radians(90.)
-        u = np.array([-1., 0., 0.])
-        q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
-        self.loader.add_body(path_to_mesh + 'duck_green.obj', path_to_mesh + 'duck_y_up.pkl', q, np.array([-1., 23., -1.]))
+        if (nb_of_ducks > 1) :
+            theta = np.radians(30.) #np.radians(90.)
+            u = np.array([-1., 0., 0.])
+            q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+            self.loader.add_body(path_to_mesh + 'duck_blue.obj', path_to_mesh + 'duck_y_up.pkl', q, np.array([1., 15., 1.]))
+        #--Duck 3
+        if (nb_of_ducks > 2) :
+            theta = np.radians(-30.) #np.radians(90.)
+            u = np.array([-1., 0., 0.])
+            q = np.array([u[0] * np.sin(theta / 2.), u[1] * np.sin(theta / 2.), u[2] * np.sin(theta / 2.), np.cos(theta /2.)])
+            self.loader.add_body(path_to_mesh + 'duck_green.obj', path_to_mesh + 'duck_y_up.pkl', q, np.array([-1., 23., -1.]))
         #--Generation of the ellipsoids_field
         self.ellips_field = self.loader.generate_ellipsoids_field()
         self.nb_of_ellipsoids = self.loader.get_nb_of_ellipsoids()
         self.nb_of_pairs = self.loader.get_nb_of_edges()
 
-        self.nb_of_iter = 1
-        self.dt = 3e-3
+        self.nb_of_iter = nb_iter_solver
+        self.dt = dt
         self.t = 0.0
+        self.shape_matching_stiffness = shape_matching_stiff
         self.cur_step = 0
         self.paused = True
 
@@ -117,7 +120,7 @@ class Simulation(object):
 
         for _ in range(self.nb_of_iter) :
             # self.project_distance_constr(1.) #Shape matching constraint is sufficient
-            self.project_shape_matching_constr(0.01, self.nb_of_iter) # 0.35 (stiff), 0.01 soft
+            self.project_shape_matching_constr(self.shape_matching_stiffness, self.nb_of_iter) # 0.35 (stiff), 0.01 soft
             self.gen_collision_ground()
             self.generate_collisions_particle()
             self.solve_collisions_particles()
@@ -599,16 +602,33 @@ def skinVertices(sim, path_to_meshes, save_all_bodies = False, save_frame = True
     if save_frame :
         o3d.io.write_triangle_mesh(path_to_meshes + "Frames/frame_" + str(sim.cur_step) + ".obj", frame)
 
+def init_sim() :
+    print('Welcome to our simulation, to use default values just tap "ENTER" wihout writing anything to answer the following questions')
+
+    path_to_meshes = "../Meshes/" #../Meshes/
+    nb_of_ducks = max(int(input("How many ducks do you want to simulate (1, 2 or 3):\n") or 3), 1)
+    dt = max(float(input("What time step do you want (recommended 3e-3):\n") or 3e-3), 1e-4)
+    nb_iter_solver = max(int(input("How many iterations in the solver (recommended 1):\n") or 1), 1)
+    shape_matching_stiff = np.clip(float(input("Shape matching stifness [0, 1] (recommended 0.01), the smaller the softer the ducks will be:\n") or 0.01), 0., 1.)
+    do_skinning = False
+    if input("Do you want to do skinning (y/n), the meshes will be stored in Meshes/Frames:\n") == "y" :
+        do_skinning = True
+    nb_frames = max(int(input("How many frames do you want to simulate (-1 the simulation will run forever):\n") or -1), -1)
+
+    print('The simulation is in progress... To start it just press "SPACE", once the open3D window is opened')
+
+    sim = Simulation(path_to_meshes,
+     nb_of_ducks = nb_of_ducks,
+     dt = dt, nb_iter_solver = nb_iter_solver,
+     shape_matching_stiff = shape_matching_stiff,
+     res = 5, do_skinning = do_skinning)
+    return path_to_meshes, do_skinning, nb_frames, sim
 
 def main():
     '''
     Must be run from the folder Simulator, otherwise change the path to the Meshes folder
     '''
-    path_to_meshes = "..Meshes/" #../Meshes/
-    do_skinning = False
-    sim = Simulation(path_to_meshes, res = 5, do_skinning = do_skinning)
-    max_iter = 2005 #if negative run forever
-
+    path_to_meshes, do_skinning, max_iter, sim = init_sim()
 
     # setup gui
     vis = o3d.visualization.VisualizerWithKeyCallback()
