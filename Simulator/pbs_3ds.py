@@ -627,7 +627,7 @@ def init_sim() :
 
     print('\nWelcome the simulator, to use default values just tap "ENTER" in any option')
 
-    path_to_meshes = "../Meshes/" #../Meshes/
+    path_to_meshes = "..Meshes/" #../Meshes/
     nb_of_ducks = max(int(input("How many ducks do you want to simulate (1, 2 or 3):\n") or 3), 1)
     dt = max(float(input("What time step do you want (recommended 3e-3):\n") or 3e-3), 1e-4)
     nb_iter_solver = max(int(input("How many iterations in the solver (recommended 1):\n") or 1), 1)
