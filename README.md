@@ -20,6 +20,8 @@ python3 main.py True 2005
 ```
 A sample execution is the following:
 ![alt text](./README_pictures/img3.png)
+If we want to use default parameters:
+![alt text](./README_pictures/img4.png)
 ### mesh_generator.py (in folder MeshGenerator)
 mesh_generator.py allow to build custom particle graphs that can be
 used in the simulator. In the folder Meshes, we have prepared a duck
