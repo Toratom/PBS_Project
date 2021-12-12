@@ -5,7 +5,6 @@ import open3d as o3d
 import numpy as np
 from sklearn.neighbors import KDTree
 from tqdm import tqdm
-# TODO: gestire runtime error quando non si può costruire il grafo
 
 class MeshGenerator(object):
     def __init__(self, mesh_path, distance, num_ellips, r_connections, d_connections):
@@ -25,10 +24,6 @@ class MeshGenerator(object):
         # Code adapted from Open3D tutorial
         print('Loading the mesh:')
         self.mesh = o3d.io.read_triangle_mesh(mesh_path, True)
-        #No longer needed with the loader :
-        # Rotating the mesh. Blender inverts y and z
-        # R = self.mesh.get_rotation_matrix_from_xyz((-np.pi / 2, 0, 0))
-        # self.mesh.rotate(R, center=(0, 0, 0))
         print(self.mesh)
         print('Vertices:')
         print(np.asarray(self.mesh.vertices))
@@ -142,7 +137,6 @@ class MeshGenerator(object):
             self.vis_particles.append(self.create_ellipsoid_mesh(all_radii[i], all_positions[i],
                                                                  all_rotations[i], visualize_orientation = False))
         # Create connections between particles
-
         # Another KDTree to simplify queries
         support_structure = o3d.geometry.PointCloud()
         points = np.array(all_positions)
@@ -195,24 +189,6 @@ class MeshGenerator(object):
                 r1 = max(r1 - distance - separation, 0)
 
         return r1
-
-    '''def compute_radius(self, radii, n, R):
-        a = radii[0]
-        b = radii[1]
-        c = radii[2]
-        elli_mat = np.array([[1. / (a * a), 0., 0.], [0., 1. / (b * b), 0.], [0., 0., 1. / (c * c)]])
-        A = R @ elli_mat @ R.T
-        radius = np.sqrt(1. / (n.T @ A @ n))
-        return radius
-
-    def precise_collisions(self, radii1, radii2, n):
-        A1 = self.ellips_matrix(radii1)
-        A2 = self.ellips_matrix(radii2)
-        lmbd = - np.sqrt(n.T @ A1 @ np.linalg.inv(A2) @ n)
-        B = np.linalg.inv(lmbd * A2 - A1) @ A2
-        d = np.sqrt( 1 / ((lmbd ** 2) * n.T @ B.T @ A1 @ B @ n))
-        x = np.linalg.inv(lmbd * A2 - A1) @ A2 @ n * lmbd * d
-        return d, x'''
 
     def ellips_matrix(self, radii):
         return np.array([[1. / (radii[0] * radii[0]), 0., 0.], [0., 1. / (radii[1] * radii[1]), 0.],
@@ -326,26 +302,32 @@ class MeshGenerator(object):
         return rot_matrix
 
 
-def main():  # TODO: add arguments to main. Also allow to rotate mesh to import pre-rotated one in simulator
-
-    # main arguments:
-    arguments = sys.argv
-    if arguments.__len__() < 5:
-        raise RuntimeError("Too few arguments")
-    candidate_radius = float(arguments[1])
-    n_candidate_centers = int(arguments[2])
-    candidate_conn_radius = float(arguments[3])
-    candidate_conn_number = int(arguments[4])
-
+def main():
     mesh_name = input("Insert mesh name (with extension and path):\n")
+    input_string = input("Insert the value of parameters on a line (separate by spaces):\n" +
+                         "candidate_radius | num_centers | conn_radius | conn_number (ENTER for default)\n")
+    # Suggested parameters: 0.90 1500 1.75 9
+    input_buffer = input_string.split(" ")
+    if input_buffer.__len__() < 5:
+        print("Too few arguments. Using defaults")
+        candidate_radius = 0.9
+        n_candidate_centers = 1500
+        candidate_conn_radius = 1.75
+        candidate_conn_number = 9
+    else:
+        candidate_radius = float(input_buffer[1])
+        n_candidate_centers = int(input_buffer[2])
+        candidate_conn_radius = float(input_buffer[3])
+        candidate_conn_number = int(input_buffer[4])
+
     print("Loading...")
     generator = MeshGenerator(mesh_name, candidate_radius, n_candidate_centers,
                               candidate_conn_radius, candidate_conn_number)
     generator.create_graph()
     print("Done!")
 
+    print("Welcome to Mesh Generator. Your mesh has been converted.")
     while True:
-        print("Welcome to Mesh Generator. Your mesh has been converted.")
         command = input("Commands: q - quit, vm - visualize mesh, vg - visualize graph - g name (with path, no ext) - "
                         "export mesh\n")
         if command == "q":
