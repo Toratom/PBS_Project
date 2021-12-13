@@ -9,7 +9,7 @@ Scipy - 1.7.1 </br>
 Our python version: Python 3.8
 ## How to run the code
 ### main.py (in folder Simulator)
-**As to be run from the folder ```PBS_Project/Simulator```.** <br/>
+**Has to be run from the folder ```PBS_Project/Simulator```.** <br/>
 ```main.py``` represents our simulator. We have prepared a mock simulation
 to simplify the imports of meshes and the set-up of the program.<br/>
 ```main.py``` can be runned in smulation mode or skinning mode.<br/>
