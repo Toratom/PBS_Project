@@ -1,5 +1,5 @@
 # Physically Base Simulation project - Group 11
-## Version of the libraries used
+## Version of the libraries used:
 Tachi - 0.7.32 </br>
 Numpy - 1.21.2 </br>
 Sklearn - 1.0 </br>
@@ -7,7 +7,7 @@ Tqdm - 4.62.3 </br>
 Open3d - 0.13.0 </br>
 Scipy - 1.7.1 </br>
 Our python version: Python 3.8
-## How to run the code
+## How to run the code:
 ### main.py (in folder Simulator)
 **Has to be run from the folder ```PBS_Project/Simulator```.** <br/>
 ```main.py``` represents our simulator. We have prepared a mock simulation
