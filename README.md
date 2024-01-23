@@ -5,10 +5,6 @@ Simulation of soft and rigid bodies, and their collisions using a graph of orien
 
 🏅 The project was awarded a prize by researchers at Disney Research Studios and professors from ETH Zurich.
 
-| https://github.com/Toratom/PBS_Project/assets/74663696/1af0cdf2-ca73-4acd-a20c-02c6d91d8644 | 
-|:--:| 
-| *Simulation visualization and rendering of soft and rigid ducks collisions* |
-
 https://github.com/Toratom/PBS_Project/assets/74663696/1af0cdf2-ca73-4acd-a20c-02c6d91d8644
 
 ## Version of the libraries used
