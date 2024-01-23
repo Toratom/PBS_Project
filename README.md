@@ -1,13 +1,25 @@
-# Physically Base Simulation project - Group 11
-## Version of the libraries used:
-Tachi - 0.7.32 </br>
+# Physics Simulation with Oriented Particles
+
+## Overview
+Simulation of soft and rigid bodies, and their collisions using a graph of oriented particles. This is an implementation in [Taichi](https://taichi.graphics/) of the paper [Solid Simulation with Oriented Particles](https://matthias-research.github.io/pages/publications/orientedParticles.pdf) by Matthias Muller and Nuttapong Chentanez.
+
+🏅 The project was awarded a prize by researchers at Disney Research Studios and professors from ETH Zurich.
+
+| ![Illustration](https://github.com/Toratom/PBS_Project/assets/74663696/1af0cdf2-ca73-4acd-a20c-02c6d91d8644)) | 
+|:--:| 
+| *Simulation visualization and rendering of soft and rigid ducks collisions* |
+
+## Version of the libraries used
+Taichi - 0.7.32 </br>
 Numpy - 1.21.2 </br>
 Sklearn - 1.0 </br>
 Tqdm - 4.62.3 </br>
 Open3d - 0.13.0 </br>
 Scipy - 1.7.1 </br>
 Our python version: Python 3.8
-## How to run the code:
+
+## How to run the code
+
 ### main.py (in folder Simulator)
 **Has to be run from the folder ```PBS_Project/Simulator```.** <br/>
 ```main.py``` represents our simulator. We have prepared a mock simulation
@@ -32,6 +44,7 @@ A sample execution is the following:
 ![alt text](./README_pictures/img3.png)
 If we want to use default parameters:
 ![alt text](./README_pictures/img4.png)
+
 ### mesh_generator.py (in folder MeshGenerator)
 ```mesh_generator.py``` allows to build custom particles graphs that can be
 used in the simulator. In the folder ```PBS_Project/Meshes```, we have prepared a duck
@@ -61,3 +74,6 @@ vg  # Visualize the generated graph
 g Meshes/graph_name  # Create graph_name.pkl in the folder Meshes
 ```
 Note: we use .pkl files to store the data of the particles graphs
+
+## Contributors
+[Davide Corigliano](https://github.com/daviC1999) - [Lucas Teissier](https://github.com/LucasTsr) - [Thomas Poyet](https://github.com/Toratom)
