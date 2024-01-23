@@ -3,7 +3,7 @@
 ## Overview
 Simulation of soft and rigid bodies, and their collisions using a graph of oriented particles. This is an implementation in [Taichi](https://taichi.graphics/) of the paper [Solid Simulation with Oriented Particles](https://matthias-research.github.io/pages/publications/orientedParticles.pdf) by Matthias Muller and Nuttapong Chentanez. For more details, the presentation video is available [here](https://cgl.ethz.ch/teaching/simulation21/projects/11.mp4).
 
-🏅 The project was awarded a prize by researchers at Disney Research Studios and professors from ETH Zurich.
+🏅 The project was awarded a prize by researchers at Disney Research Studios and professors from ETH Zürich.
 
 https://github.com/Toratom/PBS_Project/assets/74663696/1af0cdf2-ca73-4acd-a20c-02c6d91d8644
 
